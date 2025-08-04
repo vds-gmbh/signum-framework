@@ -56,8 +56,8 @@ function numericTextBox(c: NumberLineController, validateKey: (e: React.Keyboard
       </FormGroup>
     );
 
-  const handleOnChange = (newValue: number | null) => {
-    c.setValue(newValue);
+  const handleOnChange = (newValue: number | null, event?: React.SyntheticEvent) => {
+    c.setValue(newValue, event);
   };
 
   var incNumber = typeof c.props.incrementWithArrow == "number" ? c.props.incrementWithArrow : 1;
@@ -103,7 +103,7 @@ function numericTextBox(c: NumberLineController, validateKey: (e: React.Keyboard
 export interface NumberBoxProps {
   value: number | null | undefined;
   readonly?: boolean;
-  onChange: (newValue: number | null) => void;
+  onChange: (newValue: number | null, event?: React.SyntheticEvent) => void;
   validateKey: (e: React.KeyboardEvent<any>) => boolean;
   minValue?: number | null;
   maxValue?: number | null;
@@ -135,6 +135,7 @@ function getLocaleSeparators(locale: string) {
 export function NumberBox(p: NumberBoxProps): React.JSX.Element {
 
   const [text, setText] = React.useState<string | undefined>(undefined);
+  const [lastEvent, setLastEvent] = React.useState<React.SyntheticEvent | undefined>(undefined);
 
 
   const value = text != undefined ? text :
@@ -176,13 +177,14 @@ export function NumberBox(p: NumberBoxProps): React.JSX.Element {
       const result = value == undefined || value.length == 0 ? null : unformat(p.format, value);
       setText(undefined);
       if (result != p.value)
-        p.onChange(result);
+        p.onChange(result, lastEvent);
     }
   }
 
 
   function handleOnBlur(e: React.FocusEvent<any>) {
     if (!p.readonly) {
+      setLastEvent(e);
       triggetOnBlur();
     }
 
@@ -217,14 +219,17 @@ export function NumberBox(p: NumberBoxProps): React.JSX.Element {
     if (!p.readonly) {
       const input = e.currentTarget as HTMLInputElement;
       setText(input.value);
+      setLastEvent(e);
     }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<any>) {
 
     if (!p.validateKey(e)) {
-      if (e.ctrlKey || e.altKey) //possible shortcut
+      if (e.ctrlKey || e.altKey) { //possible shortcut
+        setLastEvent(e);
         triggetOnBlur();
+      }
       e.preventDefault();
     }
     else {
