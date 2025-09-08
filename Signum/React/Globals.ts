@@ -1,6 +1,12 @@
 
 declare global {
 
+  namespace JSX {
+    // Fallback to React's JSX namespace
+    interface Element extends React.JSX.Element { }
+    interface IntrinsicElements extends React.JSX.IntrinsicElements { }
+  }
+
   interface RegExpConstructor {
     escape(s: string): string;
   }
@@ -1158,6 +1164,9 @@ export module Dic {
     dic[key] = value;
   }
 
+  export function simplify<T extends {}>(a: T): T;
+  export function simplify<T extends {}>(a: undefined): undefined;
+  export function simplify<T extends {}>(a: T | undefined): T | undefined;
   export function simplify<T extends {}>(a: T | undefined): T | undefined{
     if (a == null)
       return a;
