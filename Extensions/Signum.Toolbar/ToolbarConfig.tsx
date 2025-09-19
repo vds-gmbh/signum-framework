@@ -27,6 +27,10 @@ export abstract class ToolbarConfig<T extends Entity> {
     );
   }
 
+  async selectSubEntityForUrl(element: ToolbarResponse<T>, entity: Lite<Entity> | null): Promise<Lite<Entity> | null> {
+    return null;
+  }
+
   abstract getDefaultIcon(): IconProp;
 
   static coloredIcon(icon: IconProp | undefined, color: string | undefined): React.ReactElement | null {
@@ -43,8 +47,8 @@ export abstract class ToolbarConfig<T extends Entity> {
   abstract navigateTo(element: ToolbarResponse<T>, selectedEntity: Lite<Entity> | null): Promise<string | null>;
   abstract isCompatibleWithUrlPrio(element: ToolbarResponse<T>, location: Location, query: any, entityType?: string): { prio: number, inferredEntity ?: Lite<Entity> } | null;
 
-  handleNavigateClick(e: React.MouseEvent<any>, res: ToolbarResponse<any>, selectedEntity: Lite<Entity> | null): void {
-    e.preventDefault();
+  handleNavigateClick(e: React.MouseEvent<any> | undefined, res: ToolbarResponse<any>, selectedEntity: Lite<Entity> | null): void {
+    e?.preventDefault();
     this.navigateTo(res, selectedEntity).then(url => {
       if (url)
         AppContext.pushOrOpenInTab(url, e);
