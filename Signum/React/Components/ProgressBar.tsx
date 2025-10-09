@@ -32,6 +32,8 @@ export default function ProgressBar(p: ProgressBarProps): React.ReactElement {
     (message ? message : undefined)
   ].filter(a => a != null).join(" - ");
 
+  const breakpoint = 30 / 100;
+
   return (
     <div
       {...p.containerHtmlAttributes}
