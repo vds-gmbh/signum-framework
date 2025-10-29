@@ -48,7 +48,7 @@
     border: 0;
     vertical-align: bottom;
     height: 30px;
-    width: 30px;
+    /*width: 30px;*/
     line-height: 10px;
     font-weight: bold;
 }
@@ -81,10 +81,10 @@
     margin: 0 0.5em;
 }
 
-.sf-html-editor {
-  p, ol, ul {
+.sf-html-editor p,
+.sf-html-editor ol,
+.sf-html-editor ul {
     margin-bottom: 0.5em;
-  }
 }
 
 .sf-html-editor blockquote {
