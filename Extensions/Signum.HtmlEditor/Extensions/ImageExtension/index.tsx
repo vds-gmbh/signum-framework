@@ -12,7 +12,7 @@ export class ImageExtension
   implements HtmlEditorExtension
 {
   name = "ImageExtension";
-  constructor(public imageConverter: ImageConverter) {}
+  constructor(public imageConverter: ImageConverter<ImageInfo>) {}
 
   registerExtension(controller: HtmlEditorController): OptionalCallback {
     const abortController = new AbortController();
@@ -72,7 +72,7 @@ export class ImageExtension
   async insertImageNodes(
     files: FileList,
     editor: LexicalEditor,
-    imageConverter: ImageConverter
+    imageConverter: ImageConverter<ImageInfo>
   ): Promise<void> {
     const uploadPromises = Array.from(files)
       .filter((file) => file.type.startsWith("image/"))

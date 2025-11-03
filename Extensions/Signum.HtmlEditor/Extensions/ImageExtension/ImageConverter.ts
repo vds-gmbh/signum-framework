@@ -1,10 +1,10 @@
 
-export interface ImageConverter {
+export interface ImageConverter<T> {
   dataImageIdAttribute?: string;
-  uploadData(blob: Blob): Promise<ImageInfo>;
-  renderImage(val: ImageInfo): React.ReactElement;
-  toElement(val: ImageInfo): HTMLElement | undefined;
-  fromElement(val: HTMLElement): ImageInfo | undefined;
+  uploadData(blob: Blob): Promise<T>;
+  renderImage(val: T): React.ReactElement;
+  toElement(val: T): HTMLElement | undefined;
+  fromElement(val: HTMLElement): T | undefined;
 }
 
 export interface ImageInfo {

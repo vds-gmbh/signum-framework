@@ -3,7 +3,7 @@ import { ImageConverter, ImageInfo } from "./ImageConverter";
 import { ReactElement, JSXElementConstructor } from "react";
 
 export class ImageNode extends DecoratorNode<React.ReactElement> {
-  constructor(private imageInfo: ImageInfo, private imageConverter: ImageConverter, key?: NodeKey) {
+  constructor(private imageInfo: ImageInfo, private imageConverter: ImageConverter<ImageInfo>, key?: NodeKey) {
     super(key);
     this.imageInfo = imageInfo;
     this.imageConverter = imageConverter;
@@ -44,6 +44,6 @@ export class ImageNode extends DecoratorNode<React.ReactElement> {
   }
 }
 
-export function $createImageNode(uploadedFile: ImageInfo, imageConverter: ImageConverter): ImageNode {
+export function $createImageNode(uploadedFile: ImageInfo, imageConverter: ImageConverter<ImageInfo>): ImageNode {
   return $applyNodeReplacement(new ImageNode(uploadedFile, imageConverter));
 }
