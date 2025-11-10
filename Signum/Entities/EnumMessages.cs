@@ -43,11 +43,11 @@ public enum OperationMessage
     [Description("{0} & New")]
     _0AndNew,
 
-    BulkModifications, 
+    BulkModifications,
     [Description("Please confirm that you would like to apply the above changes and execute {0} over {1} {2}")]
     PleaseConfirmThatYouWouldLikeToApplyTheAboveChangesAndExecute0Over12,
 
-    Condition, 
+    Condition,
     Setters,
     [Description("Add setter")]
     AddSetter,
@@ -726,7 +726,6 @@ public enum ContainerToggleMessage
     Compress,
     Expand,
 }
-
 
 [AllowUnauthenticated]
 public enum FontSizeMessage
