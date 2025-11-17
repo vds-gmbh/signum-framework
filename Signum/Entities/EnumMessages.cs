@@ -118,6 +118,7 @@ public enum FrameMessage
     Main,
 }
 
+[AllowUnauthenticated]
 public enum EntityControlMessage
 {
     Create,
