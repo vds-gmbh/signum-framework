@@ -1,5 +1,5 @@
-import { SerializedLexicalNode } from "lexical";
-import { ImageNodeBase } from "./ImageNodeBase";
+import { LexicalEditor, SerializedLexicalNode } from "lexical";
+import { ImageNode } from "./ImageNode";
 
 export interface ImageHandlerBase {
   dataImageIdAttribute?: string;
@@ -13,4 +13,11 @@ export interface ImageInfo extends Partial<SerializedLexicalNode>{
   imageId?: string;
   binaryFile?: string;
   fileName?: string;
+}
+
+
+declare module "lexical" {
+  export interface LexicalEditor {
+    imageHandler?: ImageHandlerBase;
+  }
 }
