@@ -7,7 +7,7 @@ using DocumentFormat.OpenXml.Vml.Office;
 using Signum.Engine.Sync;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Signum.Authorization.WindowsAD.Authorizer;
-using Signum.Authorization.ADGroups;
+using Signum.Authorization.BaseAD;
 
 namespace Signum.Authorization.WindowsAD;
 

@@ -1,4 +1,5 @@
 using System.DirectoryServices.AccountManagement;
+using Signum.Authorization.BaseAD;
 
 #pragma warning disable CA1416 // Validate platform compatibility
 namespace Signum.Authorization.WindowsAD.Authorizer;
@@ -17,6 +18,8 @@ public class DirectoryServiceAutoCreateUserContext : IAutoCreateUserContext
     public Guid? OID => null;
 
     public string? SID => GetUserPrincipal().Sid.Value;
+
+    public BaseADConfigurationEmbedded Config { get; }
 
     UserPrincipal? userPrincipal;
 

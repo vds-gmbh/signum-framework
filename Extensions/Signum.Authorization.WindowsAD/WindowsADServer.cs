@@ -3,7 +3,6 @@ using System.Security.Principal;
 using System.DirectoryServices.AccountManagement;
 using Signum.Utilities.Reflection;
 using Signum.Authorization.WindowsAD.Authorizer;
-using Signum.Authorization.ADGroups;
 
 namespace Signum.Authorization.WindowsAD;
 
