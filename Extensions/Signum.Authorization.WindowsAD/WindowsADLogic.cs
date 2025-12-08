@@ -19,6 +19,8 @@ public static class WindowsADLogic
         if (sb.AlreadyDefined(MethodBase.GetCurrentMethod()))
             return;
 
+        ReflectionServer.RegisterLike(typeof(WindowsADTask), () => Schema.Current.IsAllowed(typeof(ScheduledTaskEntity), true) == null);
+
         PermissionLogic.RegisterTypes(typeof(ActiveDirectoryPermission));
 
         if (sb.WebServerBuilder != null)
@@ -221,7 +223,7 @@ public static class WindowsADLogic
 
             UserPrincipal userPrincipal = UserPrincipal.FindByIdentity(pc, userPc.SamAccountName);
 
-            var acuCtx = new DirectoryServiceAutoCreateUserContext(pc, userPc.SamAccountName, userPc.UserPrincipalName, userPrincipal);
+            var acuCtx = new DirectoryServiceAutoCreateUserContext(config, pc, userPc.SamAccountName, userPc.UserPrincipalName, userPrincipal);
 
             using (ExecutionMode.Global())
             using (var tr = new Transaction())

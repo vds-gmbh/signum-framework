@@ -1,5 +1,6 @@
-using System.DirectoryServices.AccountManagement;
+
 using Signum.Authorization.BaseAD;
+using System.DirectoryServices.AccountManagement;
 
 #pragma warning disable CA1416 // Validate platform compatibility
 namespace Signum.Authorization.WindowsAD.Authorizer;
@@ -47,11 +48,11 @@ public class WindowsADAuthorizer : ICustomAuthorizer
                         {
                             var localName = userName.TryBeforeLast('@') ?? userName.TryAfter('\\') ?? userName;
 
-                            var dsacuCtx = new DirectoryServiceAutoCreateUserContext(pc, localName, identityValue: userName);
-                            
+                            var dsacuCtx = new DirectoryServiceAutoCreateUserContext(config, pc, localName, identityValue: userName);
+
                             var sid = dsacuCtx.GetUserPrincipal().Sid;
 
-                            UserEntity? user = Database.Query<UserEntity>().SingleOrDefaultEx(a => a.Mixin<UserWindowsADMixin>().SID == sid.ToString()) ?? 
+                            UserEntity? user = Database.Query<UserEntity>().SingleOrDefaultEx(a => a.Mixin<UserWindowsADMixin>().SID == sid.ToString()) ??
                                 AuthLogic.RetrieveUser(localName);
 
                             if (user != null)
@@ -104,7 +105,7 @@ public class WindowsADAuthorizer : ICustomAuthorizer
                 }
             }
 
-            return tr.Commit(user); 
+            return tr.Commit(user);
         }
     }
 

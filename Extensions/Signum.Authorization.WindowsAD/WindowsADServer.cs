@@ -4,6 +4,7 @@ using System.DirectoryServices.AccountManagement;
 using Signum.Utilities.Reflection;
 using Signum.Authorization.WindowsAD.Authorizer;
 
+
 namespace Signum.Authorization.WindowsAD;
 
 #pragma warning disable CA1416 // Validate platform compatibility
@@ -78,7 +79,7 @@ public class WindowsADServer
 
                             if (user == null)
                             {
-                                user = ada.OnCreateUser(new DirectoryServiceAutoCreateUserContext(pc, localName, userName));
+                                user = ada.OnCreateUser(new DirectoryServiceAutoCreateUserContext(config, pc, localName, userName));
                             }
                         }
                     }
@@ -91,7 +92,7 @@ public class WindowsADServer
                         {
                             using (PrincipalContext pc = GetPrincipalContext(config))
                             {
-                                ada.UpdateUser(user, new DirectoryServiceAutoCreateUserContext(pc, localName, userName));
+                                ada.UpdateUser(user, new DirectoryServiceAutoCreateUserContext(config, pc, localName, userName));
                             }
                         }
                     }

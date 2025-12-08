@@ -1,3 +1,4 @@
+using Signum.Authorization.BaseAD;
 using System.DirectoryServices.AccountManagement;
 using Signum.Authorization.BaseAD;
 
@@ -19,12 +20,15 @@ public class DirectoryServiceAutoCreateUserContext : IAutoCreateUserContext
 
     public string? SID => GetUserPrincipal().Sid.Value;
 
-    public BaseADConfigurationEmbedded Config { get; }
+    public WindowsADConfigurationEmbedded Config {get; }
+
+    BaseADConfigurationEmbedded IAutoCreateUserContext.Config => Config;
 
     UserPrincipal? userPrincipal;
 
-    public DirectoryServiceAutoCreateUserContext(PrincipalContext principalContext, string localName, string identityValue, UserPrincipal? userPrincipal = null)
+    public DirectoryServiceAutoCreateUserContext(WindowsADConfigurationEmbedded config, PrincipalContext principalContext, string localName, string identityValue, UserPrincipal? userPrincipal = null)
     {
+        this.Config = config;
         PrincipalContext = principalContext;
         UserName = localName;
         IdentityValue = identityValue;
