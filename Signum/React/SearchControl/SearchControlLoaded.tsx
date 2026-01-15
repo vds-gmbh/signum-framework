@@ -507,7 +507,7 @@ export class SearchControlLoaded extends React.Component<SearchControlLoadedProp
         var input = (document.activeElement as HTMLInputElement);
         input.blur();
         this.doSearchPage1(true);
-      }, 200);
+      }, 500);
     }
   }
 

@@ -155,7 +155,7 @@ export default function PinnedFilterBuilder(p: PinnedFilterBuilderProps): React.
       timeoutWriteText.current = window.setTimeout(() => {
         p.onFiltersChanged && p.onFiltersChanged(p.filterOptions, avoidSearch);
         timeoutWriteText.current = null;
-      }, 200);
+      }, 500);
 
     } else {
       p.onFiltersChanged && p.onFiltersChanged(p.filterOptions, avoidSearch);
@@ -166,7 +166,7 @@ export default function PinnedFilterBuilder(p: PinnedFilterBuilderProps): React.
     if (p.onSearch && e.key === 'Enter') {
       window.setTimeout(() => {
         p.onSearch!();
-      }, 200);
+      }, 500);
     }
   }
 
