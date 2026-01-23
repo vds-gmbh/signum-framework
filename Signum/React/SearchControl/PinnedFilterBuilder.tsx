@@ -1,6 +1,6 @@
 import * as React from 'react'
 import {
-  FilterOptionParsed, 
+  FilterOptionParsed,
   isCheckBox,
   isFilterGroup} from '../FindOptions'
 import { Binding } from '../Reflection'
@@ -15,7 +15,7 @@ interface PinnedFilterBuilderProps {
   filterOptions: FilterOptionParsed[];
   highlightFilter?: FilterOptionParsed;
   onFiltersChanged?: (filters: FilterOptionParsed[], avoidSearch?: boolean) => void;
-  pinnedFilterVisible?: (fo: FilterOptionParsed) => boolean 
+  pinnedFilterVisible?: (fo: FilterOptionParsed) => boolean
   onSearch?: () => void;
   showSearchButton?: boolean;
   extraSmall?: boolean;
@@ -155,7 +155,7 @@ export default function PinnedFilterBuilder(p: PinnedFilterBuilderProps): React.
       timeoutWriteText.current = window.setTimeout(() => {
         p.onFiltersChanged && p.onFiltersChanged(p.filterOptions, avoidSearch);
         timeoutWriteText.current = null;
-      }, 500);
+      }, 400);
 
     } else {
       p.onFiltersChanged && p.onFiltersChanged(p.filterOptions, avoidSearch);
