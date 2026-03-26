@@ -1,15 +1,8 @@
 using System.Globalization;
 using Signum.Utilities.Reflection;
-using Signum.Basics;
-using System.Collections.Concurrent;
 using System.IO;
-using System.Diagnostics.CodeAnalysis;
-using System.Runtime.Intrinsics.Arm;
-using Signum.Translation;
-using Signum.Basics;
 using Signum.Engine.Sync;
 using Signum.Excel;
-using Signum.UserAssets;
 using System.Collections.Frozen;
 
 namespace Signum.Translation.Instances;
@@ -48,7 +41,7 @@ public static class TranslatedInstanceLogic
         LocalizationCache = sb.GlobalLazy(() =>
             Database.Query<TranslatedInstanceEntity>()
             .ToList()
-            .AgGroupToDictionary(a => a.Culture.ToCultureInfo(),
+            .GroupAggregateToDictionary(a => a.Culture.ToCultureInfo(),
             gr2 => gr2.GroupBy(a => a.PropertyRoute)
                 .SelectMany(gr =>
                 {
@@ -509,7 +502,7 @@ public static class TranslatedInstanceLogic
 
                                   Original = str,
                               }
-                          }).AgGroupToDictionary(a => new IndexedPropertyRoute(a.Route!, a.RowId), g => g.ToDictionary(a => a.Culture!, a => a.Conflict!));
+                          }).GroupAggregateToDictionary(a => new IndexedPropertyRoute(a.Route!, a.RowId), g => g.ToDictionary(a => a.Culture!, a => a.Conflict!));
 
             return new InstanceChanges
             {
@@ -582,7 +575,7 @@ public static class TranslatedInstanceLogic
             .Where(a => !isSync || a.TranslatedText.HasText())
             .GroupBy(a => (a.Key.Route, a.OriginalText), a => (a.Culture, a.TranslatedText))
             .Select(gr => KeyValuePair.Create((gr.Key.Route, gr.Key.OriginalText), 
-                gr.AgGroupToDictionary(a => a.Culture, a => 
+                gr.GroupAggregateToDictionary(a => a.Culture, a => 
                     a.Select(a => a.TranslatedText).Distinct().Only() ?? 
                     throw new InvalidOperationException($"There are more than one translations for '{gr.Key.OriginalText}':\n" + a.Select(a => a.TranslatedText).Distinct().ToString(a => "* " + a, "\n"))
                 ))

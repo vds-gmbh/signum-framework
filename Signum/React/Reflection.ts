@@ -1193,7 +1193,6 @@ export function New(type: PseudoType, props?: any, propertyRoute?: PropertyRoute
     Type: getTypeName(type),
     isNew: true,
     modified: true,
-    temporalId: newGuid(),
     toStr: undefined
   });
 
@@ -1252,7 +1251,7 @@ function initializeCollections(mod: ModifiableEntity, pr: PropertyRoute) {
 
 
 // https://stackoverflow.com/questions/105034/how-do-i-create-a-guid-uuid
-function newGuid() {
+export function newGuid() : string {
   return (`${[1e7]}-${1e3}-${4e3}-${8e3}-${1e11}`).replace(/[018]/g, (c: any) =>
     (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
   );
@@ -1265,7 +1264,6 @@ export function clone<T>(original: ModifiableEntity, propertyRoute?: PropertyRou
     Type: original.Type,
     isNew: true,
     modified: true,
-    temporalId: newGuid(),
     toStr: undefined,
   });
 
@@ -1564,6 +1562,18 @@ In case of a collection of embedded entities, use something like: MyEntity.prope
       return new QueryTokenString(lambdaToColumn);
     else
       return new QueryTokenString(tokenSequence(lambdaToColumn, true));
+  }
+
+  parseId(txt: string): string | number {
+    var miId = this.typeInfo().members["Id"]!;
+
+    if (miId == null)
+      throw new Error("Member Id not found");
+
+    if (miId.type.name == "number")
+      return parseInt(txt!);
+
+    return txt;
   }
 
   toString(): string {

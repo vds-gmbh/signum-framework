@@ -1,6 +1,5 @@
 using System.Collections.Frozen;
 using System.Data;
-using System.Net.Http.Headers;
 using System.Xml.Linq;
 
 namespace Signum.Authorization.Rules;
@@ -144,7 +143,7 @@ public abstract class AuthCache<RT, AR, R, K, A, AM> : IManualAuth<K, A>
             throw new IntegrityCheckException(errors);
 
         Dictionary<Lite<RoleEntity>, Dictionary<K, A>> realRules = rules
-              .AgGroupToDictionary(ru => ru.Role!, gr => gr
+              .GroupAggregateToDictionary(ru => ru.Role!, gr => gr
                 .SelectCatch(ru => KeyValuePair.Create(ToKey(ru.Resource!), GetRuleAllowed(ru)))
                 .ToDictionaryEx());
 

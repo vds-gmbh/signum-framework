@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useLocation, Location } from 'react-router'
-import { is } from '@framework/Signum.Entities'
+import { is,liteKey } from '@framework/Signum.Entities'
 import * as AppContext from '@framework/AppContext'
 import { ToolbarClient, ToolbarResponse } from '../ToolbarClient'
 import { ToolbarConfig, ToolbarContext, InferActiveResponse } from "../ToolbarConfig";
@@ -15,11 +15,12 @@ import { Entity, getToString, Lite } from '@framework/Signum.Entities'
 import { parseIcon } from '@framework/Components/IconTypeahead'
 import { ToolbarUrl } from '../ToolbarUrl';
 import { classes } from '@framework/Globals';
-import { LayoutMessage, ToolbarEntity, ToolbarMenuEntity,  ToolbarSwitcherEntity } from '../Signum.Toolbar';
+import { LayoutMessage, ToolbarEntity, ToolbarMenuEntity, ToolbarSwitcherEntity } from '../Signum.Toolbar';
 import { Binding, getTypeInfo, newLite, typeAllowedInDomain } from '../../../Signum/React/Reflection';
 import { Finder } from '../../../Signum/React/Finder';
 import { EntityLine, TypeContext } from '../../../Signum/React/Lines'
 import { RightCaretDropdown } from './RightCaretDropdown'
+import { QueryEntity } from '@framework/Signum.Basics';
 
 
 export default function ToolbarRenderer(p: {
@@ -222,8 +223,9 @@ export function renderNavItem(res: ToolbarResponse<any>, key: string | number, c
       if (res.url) {
         const config = res.content && ToolbarClient.getConfig(res);
         return (
-          <ToolbarNavItem key={key} title={res.label} isExternalLink={ToolbarUrl.isExternalLink(res.url)
-      }
+          <ToolbarNavItem key={key} title={res.label} 
+            isExternalLink={ToolbarUrl.isExternalLink(res.url)}
+            content={res.content}
             extraIcons={renderExtraIcons(res.extraIcons, ctx, selectedEntity)}
             active={isActive(ctx.active, res, selectedEntity)} icon={<>
               {ToolbarConfig.coloredIcon(parseIcon(res.iconName), res.iconColor)}
@@ -584,10 +586,13 @@ function ToolbarSwitcher(p: { response: ToolbarResponse<ToolbarSwitcherEntity>, 
     label: el.label || getToString(el.content),
     icon: el.iconName ? ToolbarConfig.coloredIcon(parseIcon(el.iconName), el.iconColor) : undefined
   }));
+
   return (
     <li>
       <ul>
-        <Nav.Item title={title} className="d-flex mb-2">
+        <Nav.Item 
+        data-toolbar-content={liteKeyOrQuery(p.response.content)}
+        title={title} className="d-flex mb-2">
           {icon}
           <RightCaretDropdown
             options={options}
@@ -610,10 +615,13 @@ function ToolbarSwitcher(p: { response: ToolbarResponse<ToolbarSwitcherEntity>, 
   );
 }
 
-export function ToolbarNavItem(p: { title: string | undefined, active?: boolean, isExternalLink?: boolean, isGroup?: boolean, extraIcons?: React.ReactElement, onClick: (e: React.MouseEvent) => void, icon?: React.ReactNode, onAutoCloseExtraIcons?: () => void }): React.JSX.Element {
+export function ToolbarNavItem(p: { title: string | undefined, content?: Lite<Entity>, active?: boolean, isExternalLink?: boolean, isGroup?: boolean, extraIcons?: React.ReactElement, onClick: (e: React.MouseEvent) => void, icon?: React.ReactNode, onAutoCloseExtraIcons?: () => void }): React.JSX.Element {
+  
+
   return (
     <li className="nav-item d-flex">
-      <Nav.Link title={p.title} onClick={p.onClick} onAuxClick={p.onClick} active={p.active} className="d-flex w-100" >
+      <Nav.Link title={p.title} onClick={p.onClick} onAuxClick={p.onClick} active={p.active} className="d-flex w-100"
+        data-toolbar-content={liteKeyOrQuery(p.content)}>
         <div>{p.icon}</div>
         <span className={classes("nav-item-text", p.isGroup && "nav-item-group")}>
           {p.title}
@@ -624,6 +632,10 @@ export function ToolbarNavItem(p: { title: string | undefined, active?: boolean,
       </Nav.Link>
     </li>
   );
+}
+
+export function liteKeyOrQuery(content: Lite<Entity> | null | undefined): string | null{
+  return content == null ? null : QueryEntity.isLite(content) ? getToString(content): liteKey(content);
 }
 
 export function isActive(active: InferActiveResponse | null, res: ToolbarResponse<any>, selectedEntity: Lite<Entity> | null): boolean {
@@ -644,7 +656,7 @@ export function renderExtraIcons(extraIcons: ToolbarResponse<any>[] | undefined,
 
       if (ei.url) {
         return <button type="button" className={classes("btn btn-sm border-0 py-0 m-0 sf-extra-icon", isActive(ctx.active, ei, selectedEntity) && "active")} key={i}
-          onClick={e => { e.stopPropagation(); linkClick(ei, selectedEntity, e, ctx); } }>
+          onClick={e => { e.stopPropagation(); linkClick(ei, selectedEntity, e, ctx); }}>
           {ToolbarConfig.coloredIcon(parseIcon(ei.iconName!), ei.iconColor)}
         </button>;
       }

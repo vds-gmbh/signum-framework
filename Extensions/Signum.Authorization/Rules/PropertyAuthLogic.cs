@@ -1,11 +1,8 @@
-using Microsoft.AspNetCore.Routing;
 using Signum.API.Json;
 using Signum.DynamicQuery.Tokens;
-using Signum.Entities;
 using Signum.Utilities.Reflection;
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
-using System.Diagnostics.Eventing.Reader;
 
 namespace Signum.Authorization.Rules;
 
@@ -235,7 +232,7 @@ public static class PropertyAuthLogic
     {
         if (dd.AdditionalDictionary == null)
         {
-            var lookup = dd.OverrideDictionary!.AgGroupToFrozenDictionary(kvp => kvp.Key.RootType, gr => gr.ToFrozenDictionaryEx());
+            var lookup = dd.OverrideDictionary!.GroupAggregateToFrozenDictionary(kvp => kvp.Key.RootType, gr => gr.ToFrozenDictionaryEx());
             dd.AdditionalDictionary = lookup;
             return lookup;
         }

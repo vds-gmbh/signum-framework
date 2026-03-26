@@ -4,10 +4,10 @@ import { DomUtils, classes, Dic, softCast, isNumber } from '../Globals'
 import { Finder } from '../Finder'
 import {
   ResultTable, ResultRow, FindOptionsParsed, FilterOption, FilterOptionParsed, QueryDescription, ColumnOption, ColumnOptionParsed,
-  Pagination, OrderOptionParsed, SubTokensOptions, filterOperations, QueryToken, QueryRequest, isActive,
-  hasOperation, hasToArray, hasElement, getTokenParents, FindOptions, isFilterCondition, hasManual,
-  withoutPinned
+  Pagination, OrderOptionParsed, filterOperations, QueryRequest, isActive,
+  FindOptions, isFilterCondition, withoutPinned
 } from '../FindOptions'
+import { getTokenParents, hasElement, hasManual, hasOperation, hasToArray, QueryToken, SubTokensOptions } from '../QueryToken'
 import { SearchMessage, JavascriptMessage, Lite, liteKey, Entity, ModifiableEntity, EntityPack, FrameMessage, is } from '../Signum.Entities'
 import { tryGetTypeInfos, TypeInfo, isTypeModel, getTypeInfos, QueryTokenString, getQueryNiceName, isNumberType, getTypeInfo } from '../Reflection'
 import { Navigator, ViewPromise } from '../Navigator'
@@ -632,7 +632,7 @@ export class SearchControlLoaded extends React.Component<SearchControlLoadedProp
 
   };
 
-  handleChangeFiltermode = async (mode: SearchControlFilterMode, refreshFilters = true, force = false): Promise<void> => {
+  async handleChangeFiltermode(mode: SearchControlFilterMode, refreshFilters: boolean = true, force: boolean = false): Promise<void> {
     if (this.state.filterMode == mode && !force)
       return;
 
@@ -644,7 +644,6 @@ export class SearchControlLoaded extends React.Component<SearchControlLoadedProp
       simpleFilterBuilder: mode == "Simple" ? this.getSimpleFilterBuilderElement() : undefined,
       filterMode: mode
     }, () => this.handleHeightChanged());
-
   }
 
   handleSystemTimeClick = (): void => {
