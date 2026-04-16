@@ -32,7 +32,7 @@ public static class OperationAuthLogic
         cache = new OperationCache(sb);
 
         TypeConditionsPerType = sb.GlobalLazy(() => new ConcurrentDictionary<(Lite<RoleEntity> role, Type type), bool>(),
-            new InvalidateWith(typeof(RuleOperationEntity), typeof(RuleOperationConditionEntity)));
+            new InvalidateWith(typeof(RuleOperationEntity), typeof(RuleOperationConditionEntity), typeof(RuleTypeEntity), typeof(RuleTypeConditionEntity)));
 
         sb.Schema.EntityEvents<RoleEntity>().PreUnsafeDelete += query =>
         {
@@ -225,7 +225,7 @@ public static class OperationAuthLogic
 
         TypeAllowedBasic checkFor = operation.OperationType switch
         {
-            OperationType.ConstructorFrom => TypeAllowedBasic.Read,
+            OperationType.ConstructorFrom => ((IConstructorFromOperation)operation).SourceEntityIsModified ? TypeAllowedBasic.Write : TypeAllowedBasic.Read,
             OperationType.ConstructorFromMany => TypeAllowedBasic.Read,
             OperationType.Execute => ((IExecuteOperation)operation).ForReadonlyEntity ? TypeAllowedBasic.Read : TypeAllowedBasic.Write,
             OperationType.Delete => TypeAllowedBasic.Write,

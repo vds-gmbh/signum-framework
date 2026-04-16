@@ -16,8 +16,12 @@ Detailed guidance is organized in `Framework/Skills/`. Read the relevant file be
 
 | Skill | Description |
 |---|---|
+| [CreatingSignumUpgrades](Skills/CreatingSignumUpgrades.md) | How to create Signum.Upgrade scripts from Southwind commits |
 | [Localization](Skills/Localization.md) | How to localize user-facing messages in C# and TypeScript/React |
-| [ReactTesting](Skills/ReactTesting.md) | How to write Selenium UI tests: proxies, environment setup, waiting, debugging |
+| [ReactTesting.Writing](Skills/ReactTesting.Writing.md) | How to write React test with Signum.Playwright |
+| [ReactTesting.Debugging](Skills/ReactTesting.Debugging.md) | How to Start and Debug React with Signum.Playwright |
+
+**When a React UI test fails, read `ReactTesting.Debugging` before attempting any diagnosis.**
 
 ## Language-Specific Guidance
 

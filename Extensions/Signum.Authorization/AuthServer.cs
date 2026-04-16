@@ -261,7 +261,7 @@ public static class AuthServer
                 if (allowed == PropertyAllowed.None)
                     return PropertyMetadata.Hidden;
 
-                if (allowed == PropertyAllowed.Read)
+                if (allowed == PropertyAllowed.Read && asm.Default != PropertyAllowed.Read)
                     return PropertyMetadata.ReadOnly;
 
                 return null;
@@ -325,7 +325,7 @@ public static class AuthServer
                     if (error != null)
                         throw new ApplicationException(error);
 
-                    user.PasswordHash = PasswordEncoding.EncodePassword(user.UserName, password);
+                    user.PasswordHash = PasswordEncoding.HashPassword(user.UserName, password);
 
                 }
             }
