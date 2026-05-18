@@ -3,7 +3,7 @@ import { EntityLine, EntityTable, AutoLine, CheckboxLine, TextBoxLine } from '@f
 import { TypeContext } from '@framework/TypeContext'
 import { useForceUpdate } from '@framework/Hooks'
 import { OpenIDConfigurationEmbedded } from './Signum.Authorization.OpenID'
-import { toAbsoluteUrl } from '../../Signum/ts_out/React/AppContext';
+import { toAbsoluteUrl } from '@framework/AppContext';
 
 const roleClaimPathSuggestions = [
   "roles",
