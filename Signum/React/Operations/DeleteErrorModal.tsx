@@ -215,7 +215,12 @@ function propertyRouteToQueryToken(route: string): string {
   let result = 'Entity';
   for (const p of pr.allParents(true)) {
     switch (p.propertyRouteType) {
-      case "Field": result += '.' + p.member!.name; break;
+      case "Field": {
+        const name = p.member!.name;
+        const lastSep = Math.max(name.lastIndexOf('/'), name.lastIndexOf('.'));
+        result += '.' + (lastSep >= 0 ? name.substring(lastSep + 1) : name);
+        break;
+      }
       case "Mixin": result += '.(' + p.mixinName + ')'; break;
       case "MListItem": result += '.Any'; break;
       case "LiteEntity": result += '.Entity'; break;
