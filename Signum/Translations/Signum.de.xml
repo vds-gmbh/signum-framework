@@ -21,7 +21,7 @@
     <Member Name="_0MoreNotVisibleForYou" Description="{0} mehr nicht sichtbar für Sie" />
     <Member Name="Delete" Description="Löschen" />
     <Member Name="ErrorDetails" Description="Fehlerdetails" />
-    <Member Name="NoReferencesFoundYouCanNowDeleteThisEntity" Description="Keine Referenzen gefunden. Du kannst diese Entität jetzt löschen." />
+    <Member Name="NoReferencesFoundYouCanNowDeleteThisEntity" Description="Keine Referenzen gefunden. Sie können diese Entität jetzt löschen." />
     <Member Name="ReferencedVia" Description="verlinkt über" />
     <Member Name="Refresh" Description="Aktualisieren" />
     <Member Name="TheFollowingEntitiesStillReference0RemoveThemBeforeDeleting" Description="Die folgenden Elemente verweisen noch auf {0}. Entfernen Sie diese vor dem Löschen." />
