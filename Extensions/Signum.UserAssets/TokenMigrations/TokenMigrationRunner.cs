@@ -40,7 +40,8 @@ public static class TokenMigrationRunner
                 if (!SafeConsole.Ask("Create new Token Migration?"))
                     return;
 
-                RecordNewMigration();
+                if (!RecordNewMigration())
+                    return;
             }
         }
     }
@@ -144,7 +145,7 @@ public static class TokenMigrationRunner
         }
     }
 
-    static void RecordNewMigration()
+    static bool RecordNewMigration()
     {
         // History = every committed migration file (both .tokens.json and .query.json), regardless
         // of whether applied to the dev DB. Files are loaded as-is; era-aware subKey resolution
@@ -170,7 +171,8 @@ public static class TokenMigrationRunner
         if (recording.IsEmpty)
         {
             SafeConsole.WriteLineColor(ConsoleColor.Green, "No changes in tokens found!");
-            return;
+            Console.WriteLine();
+            return false;
         }
 
         var version = DateTime.Now.ToString("yyyy.MM.dd-HH.mm.ss");
@@ -185,6 +187,8 @@ public static class TokenMigrationRunner
 
         var fullPath = Path.Combine(migrationDirectory, fileName);
         recording.Save(fullPath);
+
+        return true;
     }
 
     static void PrintReport(TokenSyncContext ctx)
