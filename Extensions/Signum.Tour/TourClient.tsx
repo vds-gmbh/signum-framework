@@ -2,12 +2,11 @@ import * as React from 'react'
 import { RouteObject } from 'react-router'
 import { Navigator, EntitySettings } from '@framework/Navigator';
 import { ajaxGet } from '@framework/Services';
-import { ClickTrigger,
-CssStepEmbedded, TourEntity, TourStepEntity } from './Signum.Tour'
-import { Entity, Lite, ModifiableEntity, EntityPack } from '@framework/Signum.Entities';
+import { ClickTrigger, TourEntity, TourStepEntity } from './Signum.Tour'
+import { Entity, Lite, ModifiableEntity, toLite, liteKey } from '@framework/Signum.Entities';
 import { onWidgets } from '@framework/Frames/Widgets';
 import { TourButton } from './TourComponent';
-import { tryGetTypeInfo } from '@framework/Reflection';
+import { DashboardClient } from '../Signum.Dashboard/DashboardClient';
 
 export namespace TourClient {
 
@@ -22,6 +21,9 @@ export namespace TourClient {
 
       return <TourButton trigger={wc.ctx.value.Type} />;
     });
+
+    DashboardClient.onDashboardPageActions.push(dashboard =>
+      dashboard.id != null ? <TourButton trigger={toLite(dashboard)} /> : undefined);
   }
 
   export namespace API {
@@ -31,6 +33,10 @@ export namespace TourClient {
 
     export function getTourBySymbol(symbolKey: string): Promise<TourDTO | null> {
       return ajaxGet({ url: `/api/tour/bySymbol/${symbolKey}` });
+    }
+
+    export function getTourByLite(lite: Lite<Entity>): Promise<TourDTO | null> {
+      return ajaxGet({ url: `/api/tour/byLite?liteKey=${encodeURIComponent(liteKey(lite))}` });
     }
   }
 }

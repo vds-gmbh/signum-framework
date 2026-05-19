@@ -21,13 +21,15 @@ export interface CssStepEmbedded extends Entities.EmbeddedEntity {
   cssSelector: string | null;
   property: Basics.PropertyRouteEntity | null;
   toolbarContent: Entities.Lite<Entities.Entity> | null;
+  dashboardPart: string /*Guid*/ | null;
 }
 
 export const CssStepType: EnumType<CssStepType> = new EnumType<CssStepType>("CssStepType");
 export type CssStepType =
   "CSSSelector" |
   "Property" |
-  "ToolbarContent";
+  "ToolbarContent" |
+  "DashboardPart";
 
 export const PopoverAlign: EnumType<PopoverAlign> = new EnumType<PopoverAlign>("PopoverAlign");
 export type PopoverAlign =

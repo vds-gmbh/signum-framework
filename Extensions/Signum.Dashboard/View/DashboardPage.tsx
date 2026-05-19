@@ -63,18 +63,18 @@ export default function DashboardPage(): React.JSX.Element {
               <h1 className="display-6 h3">{DashboardClient.Options.customTitle(dashboard)}</h1>
             }
           </div>
-          {!Navigator.isReadOnly(DashboardEntity) &&
-            <div className="ms-auto">
-              {dashboardWithQueries.cachedQueries.length ? <span className="mx-4" title={DashboardMessage.ForPerformanceReasonsThisDashboardMayShowOutdatedInformation.niceToString() + "\n" +
-                DashboardMessage.LasUpdateWasOn0.niceToString(DateTime.fromISO(dashboardWithQueries.cachedQueries[0].creationDate).toLocaleString(DateTime.DATETIME_MED_WITH_SECONDS))}>
-                <FontAwesomeIcon aria-hidden={true} icon="clock-rotate-left" /> {DateTime.fromISO(dashboardWithQueries.cachedQueries[0].creationDate).toRelative()}
-              </span> : null}
-              {dashboard.parts.some(a => a.element.interactionGroup != null) && <HelpIcon />}
+          <div className="ms-auto">
+            {dashboardWithQueries.cachedQueries.length ? <span className="mx-4" title={DashboardMessage.ForPerformanceReasonsThisDashboardMayShowOutdatedInformation.niceToString() + "\n" +
+              DashboardMessage.LasUpdateWasOn0.niceToString(DateTime.fromISO(dashboardWithQueries.cachedQueries[0].creationDate).toLocaleString(DateTime.DATETIME_MED_WITH_SECONDS))}>
+              <FontAwesomeIcon aria-hidden={true} icon="clock-rotate-left" /> {DateTime.fromISO(dashboardWithQueries.cachedQueries[0].creationDate).toRelative()}
+            </span> : null}
+            {dashboard.parts.some(a => a.element.interactionGroup != null) && <HelpIcon />}
+            {!Navigator.isReadOnly(DashboardEntity) &&
               <Link className="sf-hide" style={{ textDecoration: "none" }} to={Navigator.navigateRoute(dashboard)} title={DashboardMessage.Edit.niceToString()}>
                 <FontAwesomeIcon aria-hidden={true} icon="pen-to-square" />
               </Link>
-            </div>
-          }
+            }
+          </div>
         </div>}
 
       {dashboard && (!entityKey || entity) && <DashboardView dashboard={dashboard} cachedQueries={cachedQueries!} entity={entity || undefined} deps={[refreshCounter, entity]} reload={reloadDashboard} hideEditButton={true} />}
