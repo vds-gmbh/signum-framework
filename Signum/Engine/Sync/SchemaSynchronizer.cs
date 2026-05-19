@@ -883,13 +883,29 @@ public static class SchemaSynchronizer
                 return AddColumnWithHistory(sqlBuilder, table, column, withHistory);
             }
 
-            var where = hasValueColumn != null ? $"{hasValueColumn.Name.SqlEscape(isPostgres)} = {(isPostgres ? "TRUE" : 1)}" : "??";
+            SqlPreCommandSimple UpdateWithHasValueDefault(bool forHistory = false)
+            {
+                var where = hasValueColumn != null ? $"{hasValueColumn.Name.SqlEscape(isPostgres)} = {(isPostgres ? "TRUE" : 1)}" : "??";
+                            return new SqlPreCommandSimple($@"UPDATE {(forHistory ? table.SystemVersioned!.TableName : table.Name)} SET
+                {column.Name.SqlEscape(isPostgres)} = {sqlBuilder.Quote(column.DbType, defaultValue)}
+            WHERE {where};");
 
-            return SqlPreCommand.Combine(Spacing.Simple,
+            }
+
+            if (!withHistory)
+                return SqlPreCommand.Combine(Spacing.Simple,
                 sqlBuilder.AlterTableAddColumn(table, column).Do(a => a.GoAfter = true),
-                new SqlPreCommandSimple($@"UPDATE {table.Name} SET
-    {column.Name.SqlEscape(isPostgres)} = {sqlBuilder.Quote(column.DbType, defaultValue)}
-WHERE {where};"))!;
+                UpdateWithHasValueDefault())!;
+
+            return new SqlPreCommand_WithHistory(
+                normal: SqlPreCommand.Combine(Spacing.Simple,
+                    sqlBuilder.AlterTableAddColumn(table, column).Do(a => a.GoAfter = true),
+                    UpdateWithHasValueDefault()),
+                history: SqlPreCommand.Combine(Spacing.Simple,
+                    sqlBuilder.AlterTableAddColumn(table, column, forHistory: true).Do(a => a.GoAfter = true),
+                    UpdateWithHasValueDefault(forHistory: true))
+            );
+
         }
         else if (column is FieldPartitionId)
         {
