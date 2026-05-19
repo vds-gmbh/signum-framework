@@ -11,6 +11,7 @@
     { "path": "../../Signum" },
     { "path": "../Signum.UserAssets" },
     { "path": "../Signum.CodeMirror" },
-    { "path": "../Signum.Dashboard" }
+    { "path": "../Signum.Dashboard" },
+    { "path": "../Signum.UserQueries" }
   ]
 }

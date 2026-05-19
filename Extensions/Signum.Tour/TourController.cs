@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Signum.API;
 using Signum.Basics;
 using Signum.Dashboard;
+using Signum.UserQueries;
 
 namespace Signum.Tour;
 
@@ -34,7 +35,8 @@ public class TourController : ControllerBase
     {
         var lite = Lite.Parse(liteKey);
 
-        if (lite.EntityType != typeof(DashboardEntity))
+        if (lite.EntityType != typeof(DashboardEntity)
+            && lite.EntityType != typeof(UserQueryEntity))
             return null;
 
         var tour = TourLogic.ToursByTrigger.Value.TryGetC(lite);
@@ -89,6 +91,10 @@ public class TourController : ControllerBase
 
                 case CssStepType.DashboardPart:
                     selectors.Add($"[data-part-content='{step.DashboardPart}']");
+                    break;
+
+                case CssStepType.TableColumn:
+                    selectors.Add($"[data-column-name='{step.TableColumn}']");
                     break;
             }
         }

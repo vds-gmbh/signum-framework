@@ -7,6 +7,8 @@ import { Entity, Lite, ModifiableEntity, toLite, liteKey } from '@framework/Sign
 import { onWidgets } from '@framework/Frames/Widgets';
 import { TourButton } from './TourComponent';
 import { DashboardClient } from '../Signum.Dashboard/DashboardClient';
+import '../Signum.UserQueries/UserQueryClient'; // augments SearchControlLoaded with getCurrentUserQuery
+import { Finder } from '@framework/Finder';
 
 export namespace TourClient {
 
@@ -24,6 +26,19 @@ export namespace TourClient {
 
     DashboardClient.onDashboardPageActions.push(dashboard =>
       dashboard.id != null ? <TourButton trigger={toLite(dashboard)} /> : undefined);
+
+    Finder.ButtonBarQuery.onButtonBarElements.push(ctx => {
+      const uq = ctx.searchControl.getCurrentUserQuery?.();
+      if (uq == null)
+        return undefined;
+      return {
+        button: (
+          <span className="d-inline-flex align-items-center mx-2">
+            <TourButton trigger={uq} />
+          </span>
+        ),
+      };
+    });
   }
 
   export namespace API {

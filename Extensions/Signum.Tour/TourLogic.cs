@@ -3,6 +3,7 @@ using Signum.API;
 using Signum.Basics;
 using Signum.Dashboard;
 using Signum.UserAssets;
+using Signum.UserQueries;
 using System.Collections.Frozen;
 using System.IO;
 
@@ -89,6 +90,12 @@ public static class TourLogic
         sb.Schema.EntityEvents<DashboardEntity>().PreUnsafeDelete += query =>
         {
             query.SelectMany(d => Database.Query<TourEntity>().Where(t => t.Trigger.Is(d.ToLite()))).UnsafeDelete();
+            return null;
+        };
+
+        sb.Schema.EntityEvents<UserQueryEntity>().PreUnsafeDelete += query =>
+        {
+            query.SelectMany(uq => Database.Query<TourEntity>().Where(t => t.Trigger.Is(uq.ToLite()))).UnsafeDelete();
             return null;
         };
     }
