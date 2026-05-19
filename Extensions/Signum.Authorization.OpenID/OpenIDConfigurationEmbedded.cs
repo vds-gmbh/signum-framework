@@ -23,6 +23,8 @@ public class OpenIDConfigurationEmbedded : BaseADConfigurationEmbedded
     [StringLengthValidator(Max = 500)]
     public string? Scopes { get; set; }
 
+    public bool AvoidSSLVerify { get; set; }
+
     protected override string? PropertyValidation(PropertyInfo pi)
     {
         if (!Enabled)

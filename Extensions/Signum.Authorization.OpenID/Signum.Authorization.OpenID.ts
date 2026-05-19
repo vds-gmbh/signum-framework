@@ -16,6 +16,7 @@ export interface OpenIDConfigurationEmbedded extends BaseAD.BaseADConfigurationE
   clientSecret: string | null;
   roleClaimPath: string | null;
   scopes: string | null;
+  avoidSSLVerify: boolean;
 }
 
 export namespace OpenIDMessage {

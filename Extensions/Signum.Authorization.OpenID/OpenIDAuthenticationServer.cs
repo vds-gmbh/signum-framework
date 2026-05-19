@@ -14,6 +14,10 @@ namespace Signum.Authorization.OpenID;
 public class OpenIDAuthenticationServer
 {
     static readonly HttpClient HttpClient = new HttpClient();
+    static readonly HttpClient SslBypassHttpClient = new HttpClient(new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
+    });
 
     public static async Task<bool> LoginOpenIDAuthentication(ActionContext ac, LoginWithOpenIDRequest request, bool throwErrors)
     {
@@ -99,9 +103,10 @@ public class OpenIDAuthenticationServer
     public static Task<OpenIdConnectConfiguration> GetDiscoveryDocument(OpenIDConfigurationEmbedded config)
     {
         var endpoint = config.GetDiscoveryEndpoint();
-        var retriever = new HttpDocumentRetriever
+        var httpClient = config.AvoidSSLVerify ? SslBypassHttpClient : HttpClient;
+        var retriever = new HttpDocumentRetriever(httpClient)
         {
-            RequireHttps = endpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+            RequireHttps = endpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase),
         };
         var configManager = new ConfigurationManager<OpenIdConnectConfiguration>(
             endpoint,
