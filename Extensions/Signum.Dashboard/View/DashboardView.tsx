@@ -95,11 +95,16 @@ export default function DashboardView(p: { dashboard: DashboardEntity, cachedQue
 
   return (
     <div className={p.embedded ? "sf-dashboard-view-embedded" : undefined}>
-      {p.hideEditButton != true && !Navigator.isReadOnly(DashboardEntity) &&
+      {p.hideEditButton != true &&
         <div className="d-flex flex-row-reverse m-1">
-          <Link className="sf-hide" style={{ textDecoration: "none" }} to={Navigator.navigateRoute(p.dashboard)} title={DashboardMessage.Edit.niceToString()}>
-            <FontAwesomeIcon aria-hidden={true} icon="pen-to-square" />
-          </Link>
+          {!Navigator.isReadOnly(DashboardEntity) &&
+            <Link className="sf-hide" style={{ textDecoration: "none" }} to={Navigator.navigateRoute(p.dashboard)} title={DashboardMessage.Edit.niceToString()}>
+              <FontAwesomeIcon aria-hidden={true} icon="pen-to-square" />
+            </Link>}
+        </div>}
+      {DashboardClient.onDashboardPageActions.length > 0 &&
+        <div className="d-flex justify-content-end m-1">
+          {DashboardClient.onDashboardPageActions.map((fn, i) => <React.Fragment key={i}>{fn(p.dashboard)}</React.Fragment>)}
         </div>}
       <div>
         {dashboardController.pinnedFilters.size > 0 && <PinnedFilterBuilder
@@ -215,21 +220,25 @@ export function PanelPart(p: PanelPartProps): React.JSX.Element | null {
 
   const lite = p.entity ? toLite(p.entity) : undefined;
 
+  const partContentKey = p.ctx.value.guid;
+
   if (renderer.withPanel && !renderer.withPanel(content, lite)) {
     const tooltipHtml = translated(part, p => p.tooltip);
-    
+
     const partContent = (
-      <ErrorBoundary>
-        {React.createElement(state.component, {
-          partEmbedded: part,
-          content: content,
-          entity: lite,
-          deps: p.deps,
-          dashboardController: p.dashboardController,
-          cachedQueries: p.cachedQueries,
-          customDataRef: customDataRef,
-        } as PanelPartContentProps<IPartEntity>)}
-      </ErrorBoundary >
+      <div data-part-content={partContentKey}>
+        <ErrorBoundary>
+          {React.createElement(state.component, {
+            partEmbedded: part,
+            content: content,
+            entity: lite,
+            deps: p.deps,
+            dashboardController: p.dashboardController,
+            cachedQueries: p.cachedQueries,
+            customDataRef: customDataRef,
+          } as PanelPartContentProps<IPartEntity>)}
+        </ErrorBoundary >
+      </div>
     );
 
     return partContent;
@@ -304,7 +313,7 @@ export function PanelPart(p: PanelPartProps): React.JSX.Element | null {
           }
         </div>
       </div>
-      <div className="card-body py-2 px-3 d-flex flex-column">
+      <div data-part-content={partContentKey} className="card-body py-2 px-3 d-flex flex-column">
         <ErrorBoundary>
           {
             React.createElement(state.component, {
