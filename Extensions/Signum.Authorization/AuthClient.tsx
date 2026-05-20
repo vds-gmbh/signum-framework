@@ -82,7 +82,7 @@ export namespace AuthClient {
 
       var f = authenticators[i];
       let aUser = await f();
-      console.log(f + "..." + aUser ? "OK" : "Null");
+      console.log(f.name + "..." + (aUser ? "OK" : "Null"));
       if (aUser)
         return aUser;
     }

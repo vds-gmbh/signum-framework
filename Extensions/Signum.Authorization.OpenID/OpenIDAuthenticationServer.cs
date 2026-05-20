@@ -13,7 +13,16 @@ namespace Signum.Authorization.OpenID;
 
 public class OpenIDAuthenticationServer
 {
-    static readonly HttpClient HttpClient = new HttpClient();
+    static readonly HttpClient _HttpClient = new HttpClient();
+    static readonly HttpClient _SslBypassHttpClient = new HttpClient(new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
+    });
+
+    static HttpClient GetHttpClient(OpenIDConfigurationEmbedded config)
+    {
+        return config.AvoidSSLVerify ? _SslBypassHttpClient : _HttpClient;
+    }
 
     public static async Task<bool> LoginOpenIDAuthentication(ActionContext ac, LoginWithOpenIDRequest request, bool throwErrors)
     {
@@ -89,7 +98,7 @@ public class OpenIDAuthenticationServer
             new KeyValuePair<string, string>("client_secret", config.ClientSecret!),
         ]);
 
-        var response = await HttpClient.PostAsync(discoveryDoc.TokenEndpoint, body);
+        var response = await GetHttpClient(config).PostAsync(discoveryDoc.TokenEndpoint, body);
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync();
@@ -99,9 +108,9 @@ public class OpenIDAuthenticationServer
     public static Task<OpenIdConnectConfiguration> GetDiscoveryDocument(OpenIDConfigurationEmbedded config)
     {
         var endpoint = config.GetDiscoveryEndpoint();
-        var retriever = new HttpDocumentRetriever
+        var retriever = new HttpDocumentRetriever(GetHttpClient(config))
         {
-            RequireHttps = endpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+            RequireHttps = endpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase),
         };
         var configManager = new ConfigurationManager<OpenIdConnectConfiguration>(
             endpoint,

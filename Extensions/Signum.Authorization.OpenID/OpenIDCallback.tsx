@@ -3,12 +3,14 @@ import * as AppContext from '@framework/AppContext'
 import { QueryString } from '@framework/QueryString'
 import { AuthClient } from '../Signum.Authorization/AuthClient'
 import { OpenIDAuthenticator } from './OpenIDAuthenticator'
-
+import ErrorModal from "@framework/Modals/ErrorModal"
 // Dedicated callback page for the OpenID Connect authorization code flow.
 // Keycloak / Dex redirects here after authentication with ?code=...&state=...
 // Registered as the route /openid-callback in OpenIDClient.startPublic().
 export default function OpenIDCallback(): React.JSX.Element {
 
+  const [isError, setIsError] = React.useState();
+   
   React.useEffect(() => {
     handleCallback();
   }, []);
@@ -25,12 +27,16 @@ export default function OpenIDCallback(): React.JSX.Element {
     const returnUrl = sessionStorage.getItem("openIDReturnUrl") ?? undefined;
     sessionStorage.removeItem("openIDReturnUrl");
 
-    if (!code || !state || state !== storedState) {
-      AppContext.navigate("/");
-      return;
-    }
-
     try {
+
+      if (!code) {
+        throw new Error("No 'code' in query string");
+      }
+
+      if (!state || state !== storedState) {
+        throw new Error("Invalid 'state' in query string");
+      }
+
       const loginResponse = await OpenIDAuthenticator.API.loginWithOpenID(
         code,
         OpenIDAuthenticator.getRedirectUri(),
@@ -44,16 +50,19 @@ export default function OpenIDCallback(): React.JSX.Element {
 
     } catch (e) {
       OpenIDAuthenticator.setOpenIDActive(false);
-      AppContext.navigate("/");
       throw e; 
     }
   }
 
   return (
     <div className="d-flex justify-content-center align-items-center" style={{ height: "100vh" }}>
-      <div className="spinner-border text-primary" role="status">
+      {isError ? <div className="spinner-border text-primary" role="status">
         <span className="visually-hidden">Signing in…</span>
-      </div>
+      </div> :
+        <div className="text-danger" role="status">
+          <span>Error</span>
+        </div>
+      }
     </div>
   );
 }

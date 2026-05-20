@@ -22,7 +22,7 @@ export default function OpenIDConfiguration(p: { ctx: TypeContext<OpenIDConfigur
     <div>
       <div className="row">
         <div className="col-sm-10 offset-sm-2">
-          <CheckboxLine ctx={ctx.subCtx(n => n.enabled)} inlineCheckbox onChange={forceUpdate} formGroupHtmlAttributes={{ style: { display: "block" } }} />
+          <CheckboxLine ctx={ctx.subCtx(n => n.enabled)} inlineCheckbox="block" onChange={forceUpdate}  />
         </div>
       </div>
 
@@ -30,6 +30,7 @@ export default function OpenIDConfiguration(p: { ctx: TypeContext<OpenIDConfigur
       <AutoLine ctx={ctx.subCtx(n => n.clientId)} helpText={"Redirect url: " + window.location.origin + toAbsoluteUrl("/openid-callback")} />
       <AutoLine ctx={ctx.subCtx(n => n.clientSecret)} />
       <AutoLine ctx={ctx.subCtx(n => n.scopes)} helpText='Space-separated scopes (default: "openid profile email")' />
+      <CheckboxLine ctx={ctx.subCtx(n => n.avoidSSLVerify)} inlineCheckbox="block" />
 
       <datalist id={datalistId}>
         {roleClaimPathSuggestions.map(s => <option key={s} value={s} />)}
@@ -40,16 +41,16 @@ export default function OpenIDConfiguration(p: { ctx: TypeContext<OpenIDConfigur
 
       <div className="row my-2">
         <div className="col-sm-6">
-          <CheckboxLine ctx={ctx.subCtx(n => n.allowMatchUsersBySimpleUserName)} inlineCheckbox formGroupHtmlAttributes={{ style: { display: "block" } }} />
+          <CheckboxLine ctx={ctx.subCtx(n => n.allowMatchUsersBySimpleUserName)} inlineCheckbox="block" />
         </div>
       </div>
 
       <div className="row my-2">
         <div className="col-sm-6">
-          <CheckboxLine ctx={ctx.subCtx(n => n.autoUpdateUsers)} inlineCheckbox onChange={forceUpdate} formGroupHtmlAttributes={{ style: { display: "block" } }} />
+          <CheckboxLine ctx={ctx.subCtx(n => n.autoUpdateUsers)} inlineCheckbox="block" onChange={forceUpdate} />
         </div>
         <div className="col-sm-6">
-          <CheckboxLine ctx={ctx.subCtx(n => n.autoCreateUsers)} inlineCheckbox onChange={forceUpdate} formGroupHtmlAttributes={{ style: { display: "block" } }} />
+          <CheckboxLine ctx={ctx.subCtx(n => n.autoCreateUsers)} inlineCheckbox="block" onChange={forceUpdate} />
         </div>
       </div>
 
