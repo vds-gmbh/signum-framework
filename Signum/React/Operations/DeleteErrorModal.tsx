@@ -97,7 +97,7 @@ export function DeleteErrorModal(p: DeleteErrorModalProps): React.ReactElement {
           </div>
         )}
 
-        {p.serviceError && (
+        {p.serviceError && hasReferences && (
           <div className="mt-3">
             <button
               className="btn btn-link btn-sm p-0 text-muted"
