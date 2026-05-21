@@ -25,6 +25,7 @@ export type ShowCount =
 export const ToolbarElementEmbedded: Type<ToolbarElementEmbedded> = new Type<ToolbarElementEmbedded>("ToolbarElementEmbedded");
 export interface ToolbarElementEmbedded extends Entities.EmbeddedEntity {
   Type: "ToolbarElementEmbedded";
+  guid: string /*Guid*/;
   type: ToolbarElementType;
   label: string | null;
   iconName: string | null;
