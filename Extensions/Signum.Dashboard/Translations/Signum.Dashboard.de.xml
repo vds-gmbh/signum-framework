@@ -124,6 +124,7 @@
     <Member Name="Columns" Description="Spalten" />
     <Member Name="Content" Description="Inhalt" />
     <Member Name="CustomColor" Description="Benutzerdefinierte Farbe" />
+    <Member Name="Guid" Description="Guid" />
     <Member Name="IconColor" Description="Symbolfarbe" />
     <Member Name="IconName" Description="Symbolname" />
     <Member Name="InteractionGroup" Description="Interaktionsgruppe" />

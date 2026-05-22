@@ -467,6 +467,24 @@ function ToolbarMenuItemsEntityType(p: { response: ToolbarResponse<ToolbarMenuEn
 
   const ctx = new TypeContext<Lite<Entity> | null>(undefined, undefined, undefined, new RefBinding(selEntityRef, "current"));
   var ti = getTypeInfo(entityType);
+
+  const filter = ToolbarClient.entityElementFilters[entityType];
+  const hiddenGuids = useAPI(
+    async () => {
+      if (!filter || !selEntityRef.current)
+        return null;
+      return await filter(selEntityRef.current);
+    },
+    [entityType, selEntityRef.current && liteKey(selEntityRef.current)]
+  );
+
+  function applyEntityFilter(elements: ToolbarResponse<any>[]): ToolbarResponse<any>[] {
+    if (!hiddenGuids || hiddenGuids.size == 0)
+      return elements;
+
+    return elements.filter(el => !el.guid || !hiddenGuids.has(el.guid));
+  }
+
   return (
     <>
       {entityType && (
@@ -480,7 +498,7 @@ function ToolbarMenuItemsEntityType(p: { response: ToolbarResponse<ToolbarMenuEn
         </Nav.Item>
       )}
       {selEntityRef.current ?
-        simplifyForEntity(p.response.elements!.filter(sr => sr.withEntity), selEntityRef.current).map((sr, i) => renderNavItem(sr, i, p.ctx, selEntityRef.current ?? p.selectedEntity)) :
+        applyEntityFilter(simplifyForEntity(p.response.elements!.filter(sr => sr.withEntity), selEntityRef.current)).map((sr, i) => renderNavItem(sr, i, p.ctx, selEntityRef.current ?? p.selectedEntity)) :
         p.response.elements!.filter(sr => !sr.withEntity).map((sr, i) => renderNavItem(sr, i, p.ctx, selEntityRef.current ?? p.selectedEntity))
       }
     </>

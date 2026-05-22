@@ -97,7 +97,7 @@ export function DeleteErrorModal(p: DeleteErrorModalProps): React.ReactElement {
           </div>
         )}
 
-        {p.serviceError && (
+        {p.serviceError && hasReferences && (
           <div className="mt-3">
             <button
               className="btn btn-link btn-sm p-0 text-muted"
@@ -107,7 +107,7 @@ export function DeleteErrorModal(p: DeleteErrorModalProps): React.ReactElement {
               {CascadeDeleteMessage.ErrorDetails.niceToString()}
             </button>
             {showDetails && (
-              <div className="mt-2 p-2 bg-light border rounded small font-monospace">
+              <div className="mt-2 p-2 bg-body-tertiary border rounded small font-monospace">
                 <div className="text-danger fw-bold mb-1">{p.serviceError.httpError.exceptionType}</div>
                 <div className="mb-2">{p.serviceError.httpError.exceptionMessage}</div>
                 {p.serviceError.httpError.stackTrace && (
