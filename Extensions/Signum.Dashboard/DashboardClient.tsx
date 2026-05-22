@@ -298,6 +298,8 @@ export namespace DashboardClient {
     return result;
   }
 
+  export const onDashboardPageActions: Array<(dashboard: DashboardEntity) => React.ReactElement | undefined> = [];
+
   export namespace Options {
 
     export let customTitle: (dashboard: DashboardEntity) => React.ReactNode = d => <DashboardTitle dashboard={d} />;

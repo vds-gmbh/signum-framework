@@ -1,6 +1,8 @@
 using Signum.UserAssets;
 using System.Xml.Linq;
-using Signum.Basics;
+using Signum.Dashboard;
+using Signum.UserQueries;
+
 
 namespace Signum.Tour;
 
@@ -8,7 +10,11 @@ namespace Signum.Tour;
 public class TourEntity : Entity, IUserAssetEntity
 {
     [UniqueIndex]
-    [ImplementedBy(typeof(TypeEntity), typeof(TourTriggerSymbol))]
+    [ImplementedBy(
+        typeof(TypeEntity),
+        typeof(TourTriggerSymbol),
+        typeof(DashboardEntity),
+        typeof(UserQueryEntity))]
     public Lite<Entity> Trigger { get; set; }
 
     [QueryableProperty, Ignore, NoRepeatValidator, PreserveOrder]
@@ -28,14 +34,31 @@ public class TourEntity : Entity, IUserAssetEntity
 
     public XElement ToXml(IToXmlContext ctx)
     {
-        var forEntityName = 
-            Trigger.Entity is TypeEntity ? ((Lite<TypeEntity>)(object)Trigger).RetrieveFromCache().CleanName :
-            Trigger.Entity is TourTriggerSymbol symbol ? symbol.Key :
-            Trigger.ToString();
+        string forEntityName;
+        string? forUserAssetGuid = null;
+
+        if (Trigger.Entity is TypeEntity)
+        {
+            forEntityName = ((Lite<TypeEntity>)(object)Trigger).RetrieveFromCache().CleanName;
+        }
+        else if (Trigger.Entity is TourTriggerSymbol symbol)
+        {
+            forEntityName = symbol.Key;
+        }
+        else if (Trigger.Entity is IUserAssetEntity userAsset)
+        {
+            forEntityName = TypeLogic.GetCleanName(Trigger.EntityType);
+            forUserAssetGuid = ctx.Include(userAsset).ToString();
+        }
+        else
+        {
+            forEntityName = Trigger.ToString()!;
+        }
 
         return new XElement("Tour",
             new XAttribute("Guid", Guid),
             new XElement("ForEntity", forEntityName),
+            forUserAssetGuid == null ? null! : new XElement("ForUserAssetGuid", forUserAssetGuid),
             new XElement("Steps", Steps.Select(s => s.ToXml(ctx))),
             new XElement("ShowProgress", ShowProgress),
             new XElement("Animate", Animate),
@@ -45,10 +68,20 @@ public class TourEntity : Entity, IUserAssetEntity
     public void FromXml(XElement element, IFromXmlContext ctx)
     {
         var forEntityKey = element.Element("ForEntity")!.Value;
-        Trigger = 
-            (Lite<Entity>)ctx.GetTypeLite(forEntityKey) ?? 
-            ctx.GetSymbol<TourTriggerSymbol>(forEntityKey)?.ToLite() ?? 
-            throw new InvalidOperationException($"ForEntity '{forEntityKey}' not found");
+        var forUserAssetGuid = element.Element("ForUserAssetGuid")?.Value;
+
+        if (forUserAssetGuid != null)
+        {
+            Trigger = ((Entity)ctx.GetEntity(Guid.Parse(forUserAssetGuid))).ToLite();
+        }
+        else
+        {
+            Trigger =
+                (Lite<Entity>)ctx.GetTypeLite(forEntityKey) ??
+                ctx.GetSymbol<TourTriggerSymbol>(forEntityKey)?.ToLite() ??
+                throw new InvalidOperationException($"ForEntity '{forEntityKey}' not found");
+        }
+
         Steps.Synchronize(element.Element("Steps")!.Elements().ToList(), (s, x) => s.FromXml(x, ctx, this));
         ShowProgress = bool.Parse(element.Element("ShowProgress")!.Value);
         Animate = element.Element("Animate") != null ? bool.Parse(element.Element("Animate")!.Value) : true;
@@ -157,6 +190,11 @@ public class CssStepEmbedded : EmbeddedEntity
     [ImplementedBy(typeof(QueryEntity))]
     public Lite<Entity>? ToolbarContent { get; set; }
 
+    public Guid? DashboardPart { get; set; }
+
+    [StringLengthValidator(Max = 400)]
+    public string? TableColumn { get; set; }
+
     protected override string? PropertyValidation(PropertyInfo pi)
     {
         if (pi.Name == nameof(CssSelector))
@@ -168,6 +206,12 @@ public class CssStepEmbedded : EmbeddedEntity
         if (pi.Name == nameof(ToolbarContent))
             return (pi, ToolbarContent).IsSetOnlyWhen(Type == CssStepType.ToolbarContent);
 
+        if (pi.Name == nameof(DashboardPart))
+            return (pi, DashboardPart).IsSetOnlyWhen(Type == CssStepType.DashboardPart);
+
+        if (pi.Name == nameof(TableColumn))
+            return (pi, TableColumn).IsSetOnlyWhen(Type == CssStepType.TableColumn);
+
         return base.PropertyValidation(pi);
     }
 
@@ -177,7 +221,9 @@ public class CssStepEmbedded : EmbeddedEntity
             new XElement("Type", Type.ToString()),
             CssSelector == null ? null! : new XElement("CssSelector", CssSelector),
             Property == null ? null! : new XElement("Property", Property),
-            ToolbarContent == null ? null! : new XElement("ToolbarContent", ctx.RetrieveLite(ToolbarContent))    
+            ToolbarContent == null ? null! : new XElement("ToolbarContent", ctx.RetrieveLite(ToolbarContent)),
+            DashboardPart == null ? null! : new XElement("DashboardPart", DashboardPart),
+            TableColumn == null ? null! : new XElement("TableColumn", TableColumn)
             );
     }
 
@@ -185,7 +231,7 @@ public class CssStepEmbedded : EmbeddedEntity
     {
         Type = element.Element("Type")!.Value.ToEnum<CssStepType>();
         CssSelector = element.Element("CssSelector")?.Value;
-        Property = element.Element("Property")?.Let(e => userAsset.Trigger is Lite<TypeEntity> typeEntity 
+        Property = element.Element("Property")?.Let(e => userAsset.Trigger is Lite<TypeEntity> typeEntity
             ? ctx.GetPropertyRoute(typeEntity.RetrieveFromCache(), e.Value)
             : null);
         var content = element.Element("Content")?.Value;
@@ -194,6 +240,8 @@ public class CssStepEmbedded : EmbeddedEntity
            (Lite<Entity>?)SymbolLogic<PermissionSymbol>.TryToSymbol(content)?.ToLite() ??
            (Lite<Entity>?)ctx.ParseLite(content, userAsset, PropertyRoute.Construct((TourStepEntity e) => e.CssSteps.First().ToolbarContent)) ??
            throw new InvalidOperationException($"Content '{content}' not found");
+        DashboardPart = element.Element("DashboardPart")?.Value.Let(v => Guid.Parse(v));
+        TableColumn = element.Element("TableColumn")?.Value;
     }
 }
 
@@ -201,5 +249,7 @@ public enum CssStepType
 {
     CSSSelector,
     Property,
-    ToolbarContent
+    ToolbarContent,
+    DashboardPart,
+    TableColumn,
 }
