@@ -482,7 +482,11 @@ function ToolbarMenuItemsEntityType(p: { response: ToolbarResponse<ToolbarMenuEn
     if (!hiddenGuids || hiddenGuids.size == 0)
       return elements;
 
-    return elements.filter(el => !el.guid || !hiddenGuids.has(el.guid));
+    return elements
+      .filter(el => !el.guid || !hiddenGuids!.has(el.guid))
+      .map(el => el.elements
+        ? { ...el, elements: applyEntityFilter(el.elements) }
+        : el);
   }
 
   return (
