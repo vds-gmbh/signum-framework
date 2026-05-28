@@ -221,7 +221,7 @@ function propertyRouteToQueryToken(route: string): string {
         result += '.' + (lastSep >= 0 ? name.substring(lastSep + 1) : name);
         break;
       }
-      case "Mixin": result += '.(' + p.mixinName + ')'; break;
+      case "Mixin": break;
       case "MListItem": result += '.Any'; break;
       case "LiteEntity": result += '.Entity'; break;
     }
