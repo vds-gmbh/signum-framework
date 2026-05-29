@@ -259,6 +259,7 @@ public static class ParsedModel
                 var errors = miParameters.Take(miParameters.Length - 1).ZipOrDefault(arguments, (p, a) => 
                     a == null ? $"The parameter {p.Name} ({p.ParameterType.TypeName()}) is not set for method {method.MethodSignature()}":
                     p == null ? $"Extra argument {a} in method {method.MethodSignature()}" :
+                    a.Type == null ? null : /* Error already logged */
                     !p.ParameterType.IsAssignableFrom(a.Type) ? $"Unable to assign the expression {a} ({a.Type!.TypeName()}) to the parameter {p.Name} ({p.ParameterType.TypeName()}) in {methodName}": 
                     null)
                     .NotNull().ToString("\n");

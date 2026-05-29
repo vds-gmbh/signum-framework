@@ -377,7 +377,8 @@ public static class UserQueryLogic
     {
         using (var tr = Transaction.ForceNew())
         {
-            uq.Save();
+            using (OperationLogic.AllowSave<UserQueryEntity>())
+                uq.Save();
             tr.Commit();
         }
     }

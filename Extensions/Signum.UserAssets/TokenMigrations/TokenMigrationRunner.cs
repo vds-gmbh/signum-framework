@@ -150,8 +150,9 @@ public static class TokenMigrationRunner
         // inside FixToken / FixValue / AskRename takes care of any earlier files whose outer keys
         // pre-date later Types renames.
         var allCommitted = TokenMigrationLogic.ReadMigrationsDirectory(silent: true);
+        SetExecuted(allCommitted);
         var loaded = allCommitted
-            .Where(p => p.FileName != null)
+            .Where(p => p.FileName != null && !p.IsExecuted)
             .Select(p => TokenMigrationFile.Load(p.FileName!))
             .ToArray();
 

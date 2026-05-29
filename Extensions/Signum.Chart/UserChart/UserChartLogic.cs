@@ -322,7 +322,8 @@ public static class UserChartLogic
     {
         using (var tr = Transaction.ForceNew())
         {
-            uc.Save();
+            using (OperationLogic.AllowSave<UserChartEntity>())
+                uc.Save();
             tr.Commit();
         }
     }

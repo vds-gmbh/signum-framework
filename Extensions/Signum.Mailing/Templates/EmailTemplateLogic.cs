@@ -1,12 +1,13 @@
-using System.Globalization;
+using Signum.Authorization;
 using Signum.DynamicQuery.Tokens;
 using Signum.Engine.Sync;
 using Signum.Templating;
-using Signum.UserAssets.QueryTokens;
 using Signum.UserAssets.Queries;
+using Signum.UserAssets.QueryTokens;
 using Signum.UserAssets.TokenMigrations;
-using Signum.Authorization;
+using Signum.UserQueries;
 using System.Collections.Frozen;
+using System.Globalization;
 
 namespace Signum.Mailing.Templates;
 
@@ -429,7 +430,8 @@ public static class EmailTemplateLogic
     {
         using (var tr = Transaction.ForceNew())
         {
-            et.Save();
+            using (OperationLogic.AllowSave<EmailTemplateEntity>())
+                et.Save();
             tr.Commit();
         }
     }

@@ -162,10 +162,10 @@ public static class QueryTokenSynchronizer
         var eraQueryKeys = ctx.ComputeEraSubKeys(queryKey);
         string current = valueString ?? "";
         bool advanced = false;
-        for (int fi = 0; fi < ctx.History.Length; fi++)
+        for (int fi = 0; fi < ctx.HistoryAndRecordingsCount; fi++)
         {
             var eraSubKey = TokenMigrationFile.FilterValueSubKey(eraQueryKeys[fi], tokenString);
-            var d = ctx.History[fi].TryGetDictionary(RenameBucket.FilterValue, eraSubKey);
+            var d = ctx.GetHistoryAndRecording(fi).TryGetDictionary(RenameBucket.FilterValue, eraSubKey);
             if (d != null && d.TryGetValue(current, out var v))
             {
                 current = v;
@@ -267,6 +267,66 @@ public static class QueryTokenSynchronizer
         {
             string part = parts[i];
 
+            // Check history for a rename starting at the current position BEFORE trying SubToken.
+            // This is necessary for multi-part renames like "B.X" -> "X" stored under the parent
+            // type: if B still resolves via SubToken, we'd advance past i=1 and only fail at i=2
+            // looking in the wrong type bucket.
+            string remaining = parts.Skip(i).ToString(".");
+            string originalRemaining = remaining;
+            int consumedOriginalParts = 0;
+
+            string liveSubKey = result == null
+                ? QueryUtils.GetKey(qd.QueryName)
+                : CleanTypeName(result.Type);
+            var eraSubKeys = ctx.ComputeEraSubKeys(liveSubKey);
+
+            for (int fi = 0; fi < ctx.HistoryAndRecordingsCount; fi++)
+            {
+                var file = ctx.GetHistoryAndRecording(fi);
+                var dic = result == null
+                    ? file.TokensByQuery?.TryGetC(eraSubKeys[fi])
+                    : file.TokensByType?.TryGetC(eraSubKeys[fi]);
+
+                if (dic == null)
+                    continue;
+
+                string? old = dic.Keys.OrderByDescending(a => a.Length).FirstOrDefault(s => remaining == s || remaining.StartsWith(s + "."));
+                if (old == null)
+                    continue;
+
+                int oldPartsCount = old.Length == 0 ? 0 : QueryUtils.SplitRegex.Split(old).Length;
+                if (consumedOriginalParts == 0)
+                    consumedOriginalParts = oldPartsCount;
+
+                var newKey = dic[old];
+                if (remaining == old)
+                    remaining = newKey;
+                else
+                    remaining = newKey.HasText()
+                        ? newKey + remaining.Substring(old.Length)
+                        : remaining.Substring(old.Length + 1);
+            }
+
+            if (remaining != originalRemaining)
+            {
+                var subParts = remaining.HasText() ? QueryUtils.SplitRegex.Split(remaining) : Array.Empty<string>();
+
+                int trailingOriginalParts = parts.Length - i - consumedOriginalParts;
+                int newKeyPartCount = subParts.Length - trailingOriginalParts;
+
+                for (int j = 0; j < newKeyPartCount; j++)
+                {
+                    QueryToken? subNewResult = QueryUtils.SubToken(result, qd, options, subParts[j]);
+                    if (subNewResult == null)
+                        return false;
+                    result = subNewResult;
+                }
+
+                i += consumedOriginalParts - 1;
+                continue;
+            }
+
+            // No history rename found; try direct SubToken resolution.
             QueryToken? newResult = QueryUtils.SubToken(result, qd, options, part);
             if (newResult != null)
             {
@@ -303,60 +363,7 @@ public static class QueryTokenSynchronizer
                 }
             }
 
-            string remaining = parts.Skip(i).ToString(".");
-            string originalRemaining = remaining;
-            int consumedOriginalParts = 0;
-
-            string liveSubKey = result == null
-                ? QueryUtils.GetKey(qd.QueryName)
-                : CleanTypeName(result.Type);
-            var eraSubKeys = ctx.ComputeEraSubKeys(liveSubKey);
-
-            for (int fi = 0; fi < ctx.History.Length; fi++)
-            {
-                var file = ctx.History[fi];
-                var dic = result == null
-                    ? file.TokensByQuery?.TryGetC(eraSubKeys[fi])
-                    : file.TokensByType?.TryGetC(eraSubKeys[fi]);
-
-                if (dic == null)
-                    continue;
-
-                string? old = dic.Keys.OrderByDescending(a => a.Length).FirstOrDefault(s => remaining == s || remaining.StartsWith(s + "."));
-                if (old == null)
-                    continue;
-
-                int oldPartsCount = old.Length == 0 ? 0 : QueryUtils.SplitRegex.Split(old).Length;
-                if (consumedOriginalParts == 0)
-                    consumedOriginalParts = oldPartsCount;
-
-                var newKey = dic[old];
-                if (remaining == old)
-                    remaining = newKey;
-                else
-                    remaining = newKey.HasText()
-                        ? newKey + remaining.Substring(old.Length)
-                        : remaining.Substring(old.Length + 1);
-            }
-
-            if (remaining == originalRemaining)
-                return false;
-
-            var subParts = remaining.HasText() ? QueryUtils.SplitRegex.Split(remaining) : Array.Empty<string>();
-
-         
-            int trailingOriginalParts = parts.Length - i - consumedOriginalParts;
-            int newKeyPartCount = subParts.Length - trailingOriginalParts;
-
-            for (int j = 0; j < newKeyPartCount; j++)
-            {
-                QueryToken? subNewResult = QueryUtils.SubToken(result, qd, options, subParts[j]);
-                if (subNewResult == null)
-                    return false;
-                result = subNewResult;
-            }
-
-            i += consumedOriginalParts - 1;
+            return false;
         }
 
         return true;
