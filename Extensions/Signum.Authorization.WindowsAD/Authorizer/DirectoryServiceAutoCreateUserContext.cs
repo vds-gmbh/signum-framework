@@ -1,6 +1,5 @@
 using Signum.Authorization.BaseAD;
 using System.DirectoryServices.AccountManagement;
-using Signum.Authorization.BaseAD;
 
 #pragma warning disable CA1416 // Validate platform compatibility
 namespace Signum.Authorization.WindowsAD.Authorizer;

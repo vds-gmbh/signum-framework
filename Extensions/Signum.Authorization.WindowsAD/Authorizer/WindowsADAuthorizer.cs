@@ -51,7 +51,7 @@ public class WindowsADAuthorizer : ICustomAuthorizer, IDirectoryInviter
 
                             var sid = dsacuCtx.GetUserPrincipal().Sid;
 
-                            UserEntity? user = Database.Query<UserEntity>().SingleOrDefaultEx(a => a.Mixin<UserWindowsADMixin>().SID == sid.ToString()) ??
+                            UserEntity? user = Database.Query<UserEntity>().SingleOrDefaultEx(a => a.ExternalId == sid.ToString()) ??
                                 AuthLogic.RetrieveUser(localName);
 
                             if (user != null)
