@@ -11,6 +11,7 @@
   <Type Name="ToolbarElementEmbedded" Description="Toolbar-element">
     <Member Name="AutoRefreshPeriod" Description="Autoaktualisierungszeitraum" />
     <Member Name="Content" Description="Inhalt" />
+    <Member Name="Guid" Description="Guid" />
     <Member Name="IconColor" Description="Symbolfarbe" />
     <Member Name="IconName" Description="Symbolname" />
     <Member Name="Label" Description="Etikett" />
@@ -40,7 +41,6 @@
   </Type>
   <Type Name="ToolbarMenuElementEmbedded" Description="Menüelement der Symbolleiste">
     <Member Name="AutoSelect" Description="Automatisch auswählen" />
-    <Member Name="EntityConditionKey" Description="Entitätskonditionsschlüssel" />
     <Member Name="WithEntity" Description="Mit Entität" />
   </Type>
   <Type Name="ToolbarMenuEntity" Description="Toolbar-Menü" PluralDescription="Toolbar-Menüs" Gender="f">

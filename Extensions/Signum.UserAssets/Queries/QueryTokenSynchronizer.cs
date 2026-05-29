@@ -303,11 +303,6 @@ public static class QueryTokenSynchronizer
                 }
             }
 
-            // Per-file chained walk: each file gets a chance to rewrite the remaining-path prefix.
-            // V1: "Name" → "Nombre" + V2: "Nombre" → "FullName" both apply in sequence so a stale
-            // token with "Name" ends up at "FullName" against the live schema. The subKey at each
-            // file's era is also tracked (via Types renames in newer files) so an older
-            // TokensColumn["Rechnung"] still matches when the live key is "Invoice".
             string remaining = parts.Skip(i).ToString(".");
             string originalRemaining = remaining;
             int consumedOriginalParts = 0;
@@ -332,9 +327,6 @@ public static class QueryTokenSynchronizer
                     continue;
 
                 int oldPartsCount = old.Length == 0 ? 0 : QueryUtils.SplitRegex.Split(old).Length;
-                // Track how many of the ORIGINAL parts at position i this collectively consumes —
-                // only the first file's match counts toward consumption; subsequent files rewrite
-                // the prefix in place (B → C operates on the result of A → B, not on extra parts).
                 if (consumedOriginalParts == 0)
                     consumedOriginalParts = oldPartsCount;
 
@@ -352,7 +344,11 @@ public static class QueryTokenSynchronizer
 
             var subParts = remaining.HasText() ? QueryUtils.SplitRegex.Split(remaining) : Array.Empty<string>();
 
-            for (int j = 0; j < subParts.Length; j++)
+         
+            int trailingOriginalParts = parts.Length - i - consumedOriginalParts;
+            int newKeyPartCount = subParts.Length - trailingOriginalParts;
+
+            for (int j = 0; j < newKeyPartCount; j++)
             {
                 QueryToken? subNewResult = QueryUtils.SubToken(result, qd, options, subParts[j]);
                 if (subNewResult == null)
@@ -360,7 +356,7 @@ public static class QueryTokenSynchronizer
                 result = subNewResult;
             }
 
-            i += (consumedOriginalParts == 0 ? 0 : consumedOriginalParts) - 1;
+            i += consumedOriginalParts - 1;
         }
 
         return true;
