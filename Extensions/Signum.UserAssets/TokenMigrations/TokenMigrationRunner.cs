@@ -7,6 +7,7 @@ public static class TokenMigrationRunner
 {
     public static void TokenMigrations(bool autoRun)
     {
+        Schema.Current.Initialize();
         Console.WriteLine();
         SafeConsole.WriteLineColor(ConsoleColor.Cyan, "..:: Token Migrations ::..");
 
@@ -24,9 +25,6 @@ public static class TokenMigrationRunner
                     return;
 
                 ApplyPending(pending);
-
-                if (autoRun)
-                    return;
             }
             else
             {
