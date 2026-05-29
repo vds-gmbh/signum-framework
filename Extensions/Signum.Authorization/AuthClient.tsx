@@ -77,8 +77,12 @@ export namespace AuthClient {
   
   
   export async function authenticate(): Promise<AuthenticatedUser | undefined> {
+
     for (let i = 0; i < authenticators.length; i++) {
-      let aUser = await authenticators[i]();
+
+      var f = authenticators[i];
+      let aUser = await f();
+      console.log(f.name + "..." + (aUser ? "OK" : "Null"));
       if (aUser)
         return aUser;
     }
@@ -109,11 +113,11 @@ export namespace AuthClient {
     });
   }
   
-  function logoutInternal() {
+  async function logoutInternal() : Promise<void> {
     setAuthToken(undefined, undefined);
     setCurrentUser(undefined);
     Options.disableWindowsAuthentication = true;
-    Options.onLogout();
+    await Options.onLogout();
   }
   
   Services.AuthTokenFilter.addAuthToken = addAuthToken;
@@ -174,6 +178,7 @@ export namespace AuthClient {
   }
   
   export function setAuthToken(authToken: string | undefined, authenticationType: AuthenticationType | undefined): void {
+    console.log("setAuthToken(" + (authToken == null ? "null" : authToken.etc(10)) + ", " + authenticationType + ")");
     sessionStorage.setItem("authToken", authToken ?? "");
     sessionStorage.setItem("authenticationType", authenticationType ?? "");
   }
@@ -193,14 +198,17 @@ export namespace AuthClient {
     function loginWithAuthToken() {
       return API.fetchCurrentUser().then(u => {
         if (u.mustChangePassword) {
+          console.log("loginWithAuthToken...OK (mustChangePassword)");
           pendingPasswordChangeUser = u;
           return undefined;
         } else {
+          console.log("loginWithAuthToken...OK");
           setCurrentUser(u);
           AppContext.resetUI();
           return u;
         }
       }, e => {
+        console.log("loginWithAuthToken...Error");
         console.error(e);
         setAuthToken(undefined, undefined);
         return undefined;
@@ -248,7 +256,7 @@ export namespace AuthClient {
     export function getCookie(): string | null { return Cookies.get("sfUser"); }
     export function removeCookie(): void { return Cookies.remove("sfUser", "/", document.location.hostname); }
   
-    export let onLogout: () => void = () => {
+    export let onLogout: () => Promise<void> = () => {
       throw new Error("onLogout should be defined (check MainPublic.tsx in Southwind)");
     }
   

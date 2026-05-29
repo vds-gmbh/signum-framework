@@ -174,6 +174,7 @@ export interface LinkElementEmbedded extends Entities.EmbeddedEntity {
 export const PanelPartEmbedded: Type<PanelPartEmbedded> = new Type<PanelPartEmbedded>("PanelPartEmbedded");
 export interface PanelPartEmbedded extends Entities.EmbeddedEntity {
   Type: "PanelPartEmbedded";
+  guid: string /*Guid*/;
   title: string | null;
   tooltip: string | null;
   iconName: string | null;

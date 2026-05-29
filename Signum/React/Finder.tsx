@@ -1696,7 +1696,11 @@ export namespace Finder {
     return getQueryDescription(fo.queryName)
       .then(qd => parseFindOptions(fo!, qd, false))
       .then(fop => API.executeQuery(getQueryRequest(fop)))
-      .then(rt => rt.rows[0].columns[0]);
+      .then(rt => {
+        if (rt.rows.length != 1)
+          throw new Error(`inDB: expected exactly 1 row for ${liteKey(isLite(entity) ? entity : toLite(entity))} but got ${rt.rows.length}`);
+        return rt.rows[0].columns[0];
+      });
   }
 
   export function inDBMany<TO extends { [name: string]: QueryTokenString<any> | string }>(entity: Entity | Lite<Entity>, tokensObject: TO): Promise<ExtractTokensObject<TO>> {
@@ -1713,8 +1717,9 @@ export namespace Finder {
       .then(qd => parseFindOptions(fo!, qd, false))
       .then(fop => API.executeQuery(getQueryRequest(fop)))
       .then(rt => {
-        var firstRow = rt.rows[0];
-        return firstRow && Dic.mapObject(tokensObject, (key, value, index) => firstRow.columns[index]) as ExtractTokensObject<TO>;
+        if (rt.rows.length != 1)
+          throw new Error(`inDBMany: expected exactly 1 row for ${liteKey(isLite(entity) ? entity : toLite(entity))} but got ${rt.rows.length}`);
+        return Dic.mapObject(tokensObject, (key, value, index) => rt.rows[0].columns[index]) as ExtractTokensObject<TO>;
       });
   }
 
@@ -2352,6 +2357,7 @@ export namespace Finder {
     pagination?: Pagination;
     allowSystemTime?: boolean;
     defaultOrders?: OrderOption[];
+    defaultOrdersAutocomplete?: OrderOption[];
     defaultFilters?: FilterOption[];
     defaultAggregates?: ColumnOption[];
     hiddenColumns?: ColumnOption[];
@@ -2390,7 +2396,12 @@ export namespace Finder {
     return tr != null && getTypeInfos(tr).some(ti => ti.isSystemVersioned == true)
   }
 
-  export function getCellFormatter(qs: QuerySettings | undefined, qt: QueryToken, sc: SearchControlLoaded | undefined): CellFormatter {
+  interface GetFormatterOptions {
+    unit?: string | null;
+    format?: string;
+  }
+
+  export function getCellFormatter(qs: QuerySettings | undefined, qt: QueryToken, sc: SearchControlLoaded | undefined, options?: GetFormatterOptions): CellFormatter {
 
     const result = qs?.formatters && qs.formatters[qt.fullKey];
 
@@ -2401,9 +2412,9 @@ export namespace Finder {
     if (prRoute)
       return prRoute;
 
-    const rule = formatRules.filter(a => a.isApplicable(qt, sc)).last("FormatRules");
+    const rule = formatRules.filter(a => a.isApplicable(qt, sc, options)).last("FormatRules");
 
-    return rule.formatter(qt, sc);
+    return rule.formatter(qt, sc, options);
   }
 
   export function resetFormatRules(): void {
@@ -2424,8 +2435,8 @@ export namespace Finder {
 
   export interface FormatRule {
     name: string;
-    formatter: (column: QueryToken, sc: SearchControlLoaded | undefined) => CellFormatter;
-    isApplicable: (column: QueryToken, sc: SearchControlLoaded | undefined) => boolean;
+    formatter: (column: QueryToken, sc: SearchControlLoaded | undefined, opts: GetFormatterOptions | undefined) => CellFormatter;
+    isApplicable: (column: QueryToken, sc: SearchControlLoaded | undefined, opts: GetFormatterOptions | undefined) => boolean;
   }
 
   export class CellFormatter {

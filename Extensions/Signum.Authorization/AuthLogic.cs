@@ -90,6 +90,7 @@ public static class AuthLogic
         {
             userWithClaims.Claims["Role"] = ((UserEntity)user).Role;
             userWithClaims.Claims["Culture"] = ((UserEntity)user).CultureInfo?.Name;
+            userWithClaims.Claims["ExternalId"] = ((UserEntity)user).ExternalId;
         };
 
         CultureInfoLogic.AssertStarted(sb);
@@ -220,6 +221,8 @@ public static class AuthLogic
                 EntityCache.AddFullGraph(role);
                 var allRoles = Database.RetrieveAll<RoleEntity>();
 
+                var roleToTrivialMerge = allRoles.ToDictionary(a => a.ToLite(), a => a.IsTrivialMerge);
+
                 if (role.InheritsFrom.IsGraphModified)
                 {
                     var roleGraph = DirectedGraph<RoleEntity>.Generate(allRoles, r => r.InheritsFrom.Select(sr => sr.RetrieveAndRemember()));
@@ -234,7 +237,7 @@ public static class AuthLogic
 
                 var dic = allRoles.ToDictionary(a => a.ToLite());
 
-                var problems2 = allRoles.SelectMany(r => r.InheritsFrom.Where(inh => RolesByLite.Value.GetOrThrow(inh).IsTrivialMerge).Select(inh => new { r, inh })).ToList();
+                var problems2 = allRoles.SelectMany(r => r.InheritsFrom.Where(inh => roleToTrivialMerge.GetOrThrow(inh)).Select(inh => new { r, inh })).ToList();
                 if (problems2.Any())
                     throw new ApplicationException(
                         problems2.GroupBy(a => a.r, a => a.inh)
@@ -314,7 +317,7 @@ public static class AuthLogic
         var result = RetrieveUserByUsername(username);
 
         if (result != null && result.State == UserState.Deactivated)
-            throw new ApplicationException(LoginAuthMessage.User0IsDeactivated.NiceToString().FormatWith(result.UserName));
+            throw new UserLockedException(LoginAuthMessage.User0IsDeactivated.NiceToString().FormatWith(result.UserName));
 
         return result;
     }
@@ -774,7 +777,7 @@ public static class AuthLogic
                        new SqlPreCommandSimple("-- BEGIN ROLE SYNC SCRIPT"),
                        Connector.Current.SqlBuilder.UseDatabase(),
                        roleInsertsDeletes,
-                       new SqlPreCommandSimple("-- END ROLE  SYNC SCRIPT"))!.OpenSqlFileRetry();
+                       new SqlPreCommandSimple("-- END ROLE  SYNC SCRIPT"))!.OpenSqlFileRetry("Auth_Roles {0:yyyy-MM-dd HH_mm_ss}.sql".FormatWith(DateTime.Now));
 
                     if (!SafeConsole.Ask("Did you run the previous script (Sync Roles)?"))
                         return;
@@ -853,7 +856,7 @@ public static class AuthLogic
                    Connector.Current.SqlBuilder.UseDatabase(),
                    roleRelationships,
                    trivialMerges,
-                   new SqlPreCommandSimple("-- END ROLE  SYNC SCRIPT"))!.OpenSqlFileRetry();
+                   new SqlPreCommandSimple("-- END ROLE  SYNC SCRIPT"))!.OpenSqlFileRetry("Auth_RoleRels {0:yyyy-MM-dd HH_mm_ss}.sql".FormatWith(DateTime.Now));
 
                 if (!SafeConsole.Ask("Did you run the previous script (Sync Roles Relationships)?"))
                     return;
@@ -934,7 +937,7 @@ public static class AuthLogic
             if (command == null)
                 SafeConsole.WriteLineColor(ConsoleColor.Green, "Already syncronized");
             else
-                command.OpenSqlFileRetry();
+                command.OpenSqlFileRetry("Auth {0:yyyy-MM-dd HH_mm_ss}.sql".FormatWith(DateTime.Now));
 
             GlobalLazy.ResetAll(systemLog: false);
         }

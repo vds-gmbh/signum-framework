@@ -81,6 +81,8 @@ public static class ToolbarOperation
 
 public class ToolbarElementEmbedded : EmbeddedEntity
 {
+    public Guid Guid { get; set; } = Guid.NewGuid();
+
     public ToolbarElementType Type { get; set; }
 
     [StringLengthValidator(Min = 1, Max = 100), Translatable]
@@ -110,6 +112,7 @@ public class ToolbarElementEmbedded : EmbeddedEntity
     public virtual XElement ToXml(IToXmlContext ctx)
     {
         return new XElement("ToolbarElement",
+            new XAttribute("Guid", Guid),
             new XAttribute("Type", Type),
             string.IsNullOrEmpty(Label) ? null! : new XAttribute("Label", Label),
             string.IsNullOrEmpty(IconName) ? null! : new XAttribute("IconName", IconName),
@@ -127,6 +130,7 @@ public class ToolbarElementEmbedded : EmbeddedEntity
 
     public virtual void FromXml(XElement x, IFromXmlContext ctx)
     {
+        Guid = x.Attribute("Guid")?.Value is { } g ? Guid.Parse(g) : Guid.NewGuid();
         Type = x.Attribute("Type")!.Value.ToEnum<ToolbarElementType>();
         Label = x.Attribute("Label")?.Value;
         ShowCount = x.Attribute("ShowCount")?.Value.ToEnum<ShowCount>();
