@@ -66,7 +66,7 @@ public class WordprocessingNodeProvider : INodeProvider
     {
         return a is W.Text;
     }
-    
+
     public OpenXmlCompositeElement GetRunProperties(OpenXmlCompositeElement run)
     {
         return ((W.Run)run).RunProperties!;
@@ -100,7 +100,7 @@ public class DrawingNodeProvider : INodeProvider
         var textElement = new D.Text(text!);
 
         var result = new D.Run(runProps!, textElement);
-        
+
         if (initialBr)
             result.InsertBefore(new D.Break(), textElement);
 
@@ -159,7 +159,7 @@ internal class SpreadsheetNodeProvider : INodeProvider
     {
         var textElement = new S.Text(text!);
         var result = new S.Run(runProps!, textElement);
-        
+
         if (initialBr)
             result.InsertBefore(new S.Break(), textElement);
 
@@ -289,7 +289,7 @@ public abstract class BaseNode : AlternateContent
     }
 
     public BaseNode(INodeProvider nodeProvider)
-{
+    {
         this.NodeProvider = nodeProvider;
     }
 
@@ -330,7 +330,7 @@ public class TokenNode : BaseNode
     public readonly ValueProviderBase ValueProvider;
     public readonly string Format;
 
-    internal TokenNode(INodeProvider nodeProvider, ValueProviderBase valueProvider, string format): base(nodeProvider)
+    internal TokenNode(INodeProvider nodeProvider, ValueProviderBase valueProvider, string format) : base(nodeProvider)
     {
         this.ValueProvider = valueProvider;
         this.Format = format;
@@ -414,6 +414,9 @@ public class TokenNode : BaseNode
 
     static string SafeFormat(IFormattable fo, string? format, IFormatProvider provider)
     {
+        if (format != null && format.StartsWith("K"))
+            return fo.ToString(null, provider); // Fallback to default formatting
+
         try
         {
             return fo.ToString(format, provider);
@@ -459,7 +462,7 @@ public class DeclareNode : BaseNode
 {
     public readonly ValueProviderBase ValueProvider;
 
-    internal DeclareNode(INodeProvider nodeProvider, ValueProviderBase valueProvider, Action<bool, string> addError): base(nodeProvider)
+    internal DeclareNode(INodeProvider nodeProvider, ValueProviderBase valueProvider, Action<bool, string> addError) : base(nodeProvider)
     {
         if (valueProvider != null && !valueProvider.Variable.HasText())
             addError(true, "declare {0} should end with 'as $someVariable'".FormatWith(valueProvider.ToString()));
@@ -493,7 +496,7 @@ public class DeclareNode : BaseNode
 
     protected internal override void RenderNode(WordTemplateParameters p)
     {
-        if (this.NodeProvider.IsParagraph(this.Parent) && 
+        if (this.NodeProvider.IsParagraph(this.Parent) &&
             !this.Parent!.ChildElements.Any(a => BlockContainerNode.IsImportant(a, NodeProvider) && a != this))
             this.Parent.Remove();
         else
@@ -518,7 +521,7 @@ public class DeclareNode : BaseNode
 
 public class BlockNode : BaseNode
 {
-    public BlockNode(INodeProvider nodeProvider): base(nodeProvider) { }
+    public BlockNode(INodeProvider nodeProvider) : base(nodeProvider) { }
 
     public BlockNode(BlockNode original) : base(original) { }
 
@@ -545,12 +548,12 @@ public class BlockNode : BaseNode
         var parent = this.Parent!;
         int index = parent.ChildElements.IndexOf(this);
         parent.RemoveChild(this);
-  
+
         foreach (var item in this.ChildElements.ToList())
         {
             item.Remove();
             parent.InsertAt(item, index++);
-        }   
+        }
     }
 
     protected internal override void RenderTemplate(ScopedDictionary<string, ValueProviderBase> variables)
@@ -572,7 +575,7 @@ public class BlockNode : BaseNode
 
 public abstract class BlockContainerNode : BaseNode
 {
-    public BlockContainerNode(INodeProvider nodeProvider): base(nodeProvider) { }
+    public BlockContainerNode(INodeProvider nodeProvider) : base(nodeProvider) { }
 
     public BlockContainerNode(BlockContainerNode original) : base(original) { }
 
@@ -666,7 +669,7 @@ public abstract class BlockContainerNode : BaseNode
             if (important.Any())
             {
                 string hint = errorHintParent != errorHint1 && errorHintParent != errorHint2 ? " in " + errorHintParent.Match : "";
-                
+
                 throw new InvalidOperationException($"Node {errorHint1.Match} is not at the same level than {errorHint2.Match}{hint}. Important nodes could be removed in the chain:\n\n" +
                     chain.Skip(chain.IndexOf(openXmlElement)).Select((a, p) => (a.GetType().Name + " with text:" + a.InnerText).Indent(p * 4)).ToString("\n\n"));
             }
@@ -685,7 +688,7 @@ public abstract class BlockContainerNode : BaseNode
             if (nodeProvider.IsText(text) && string.IsNullOrWhiteSpace(nodeProvider.GetText(text!)))
                 return false;
 
-            return true; 
+            return true;
         }
 
         if (c is BaseNode)
@@ -825,7 +828,7 @@ public class AnyNode : BlockContainerNode
     public AnyNode(AnyNode original)
         : base(original)
     {
-        this.Condition= original.Condition.Clone();
+        this.Condition = original.Condition.Clone();
 
         this.AnyToken = CloneToken(original.AnyToken);
         this.NotAnyToken = CloneOptionalToken(original.NotAnyToken);
