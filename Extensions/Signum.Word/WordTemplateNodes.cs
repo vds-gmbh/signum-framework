@@ -15,6 +15,7 @@ public interface INodeProvider
 {
     OpenXmlLeafTextElement NewText(string text);
     OpenXmlCompositeElement NewRun(OpenXmlCompositeElement? runProps, string? text, SpaceProcessingModeValues? spaceMode = null, bool initialBr = false);
+    IEnumerable<OpenXmlElement> NewRunWithLeadingBreak(OpenXmlCompositeElement? runProps, string? text, SpaceProcessingModeValues? spaceMode = null);
     bool IsRun(OpenXmlElement? element);
     bool IsText(OpenXmlElement? element);
     string GetText(OpenXmlElement run);
@@ -42,6 +43,11 @@ public class WordprocessingNodeProvider : INodeProvider
             result.InsertBefore(new W.Break(), textNode);
 
         return result;
+    }
+
+    public IEnumerable<OpenXmlElement> NewRunWithLeadingBreak(OpenXmlCompositeElement? runProps, string? text, SpaceProcessingModeValues? spaceMode = null)
+    {
+        yield return NewRun(runProps, text, spaceMode, initialBr: true);
     }
 
     public string GetText(OpenXmlElement run)
@@ -98,13 +104,15 @@ public class DrawingNodeProvider : INodeProvider
     public OpenXmlCompositeElement NewRun(OpenXmlCompositeElement? runProps, string? text, SpaceProcessingModeValues? spaceMode = null, bool initialBr = false)
     {
         var textElement = new D.Text(text!);
+        return new D.Run(runProps!, textElement);
+    }
 
-        var result = new D.Run(runProps!, textElement);
-
-        if (initialBr)
-            result.InsertBefore(new D.Break(), textElement);
-
-        return result;
+    public IEnumerable<OpenXmlElement> NewRunWithLeadingBreak(OpenXmlCompositeElement? runProps, string? text, SpaceProcessingModeValues? spaceMode = null)
+    {
+        // In DrawingML <a:br> must be a paragraph-level sibling of <a:r>, not inside it
+        var brProps = (D.RunProperties?)runProps?.CloneNode(true);
+        yield return brProps != null ? new D.Break(brProps) : new D.Break();
+        yield return NewRun(runProps, text, spaceMode);
     }
 
     public OpenXmlLeafTextElement NewText(string text)
@@ -164,6 +172,11 @@ internal class SpreadsheetNodeProvider : INodeProvider
             result.InsertBefore(new S.Break(), textElement);
 
         return result;
+    }
+
+    public IEnumerable<OpenXmlElement> NewRunWithLeadingBreak(OpenXmlCompositeElement? runProps, string? text, SpaceProcessingModeValues? spaceMode = null)
+    {
+        yield return NewRun(runProps, text, spaceMode, initialBr: true);
     }
 
     public OpenXmlLeafTextElement NewText(string text)
@@ -401,7 +414,9 @@ public class TokenNode : BaseNode
             if (text != null && text.Contains('\n'))
             {
                 var replacements = text.Lines()
-                    .Select((line, i) => NodeProvider.NewRun((OpenXmlCompositeElement?)RunProperties?.CloneNode(true), line, initialBr: i > 0));
+                    .SelectMany((line, i) => i == 0
+                        ? [(OpenXmlElement)NodeProvider.NewRun((OpenXmlCompositeElement?)RunProperties?.CloneNode(true), line)]
+                        : NodeProvider.NewRunWithLeadingBreak((OpenXmlCompositeElement?)RunProperties?.CloneNode(true), line));
 
                 this.ReplaceBy(replacements);
             }
