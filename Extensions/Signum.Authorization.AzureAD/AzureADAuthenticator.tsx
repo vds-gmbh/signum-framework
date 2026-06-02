@@ -1,4 +1,4 @@
-import * as React from "react";
+﻿import * as React from "react";
 import * as msal from "@azure/msal-browser";
 import * as AppContext from "@framework/AppContext";
 import * as Reflection from "@framework/Reflection";
@@ -22,11 +22,11 @@ export namespace AzureADAuthenticator {
         var __azureADConfig = @Json.Serialize(Starter.Configuration.Value.ActiveDirectory?.ToAzureADConfigTS());
   */
   //override if needed
-  export namespace Options {
-    export let getAzureADConfig = function (adVariant: string): AzureADConfig | undefined {
+  export const Options = {
+    getAzureADConfig: function (adVariant: string): AzureADConfig | undefined {
       return window.__azureADConfig;
     }
-  }
+  };
   
 
   export function registerAzureADAuthenticator(): void {
@@ -34,7 +34,7 @@ export namespace AzureADAuthenticator {
     if (Reflection.isStarted())
       throw new Error("call AzureADClient.registerAzureADAuthenticator in MainPublic.tsx before AuthClient.autoLogin");
 
-    LoginPage.customLoginButtons = ctx => {
+    LoginPage.Options.customLoginButtons = ctx => {
 
       const config = Options.getAzureADConfig("default");
       if (!config)
@@ -52,7 +52,7 @@ export namespace AzureADAuthenticator {
       return null;
     };
 
-    LoginPage.showLoginForm = "initially_not";
+    LoginPage.Options.showLoginForm = "initially_not";
 
     var config = getCurrentADConfig();
 
@@ -407,3 +407,4 @@ export interface AzureADConfig {
   resetPassword_UserFlow?: string;
   scopes: string[];
 }
+

@@ -165,30 +165,29 @@ export namespace Finder {
     return getPromiseSearchModal();
   }
 
-  export namespace Options {
-    export function getSearchPage(): Promise<typeof import("./SearchControl/SearchPage")> {
+  export const Options = {
+    getSearchPage(): Promise<typeof import("./SearchControl/SearchPage")> {
       return import("./SearchControl/SearchPage");
-    }
-    export function getSearchModal(): Promise<typeof import("./SearchControl/SearchModal")> {
+    },
+    getSearchModal(): Promise<typeof import("./SearchControl/SearchModal")> {
       return import("./SearchControl/SearchModal");
-    }
+    },
 
-    export let entityColumnHeader: () => React.ReactElement | string | null | undefined = () => "";
+    entityColumnHeader: (() => "") as () => React.ReactElement | string | null | undefined,
 
-    export let tokenCanSetPropery = (qt: QueryToken): boolean =>
+    tokenCanSetPropery: (qt: QueryToken): boolean =>
       qt.filterType == "Lite" && qt.key != "Entity" ||
-      qt.filterType == "Enum" && !isState(qt.type) ||
-      qt.filterType == "DateTime" && qt.propertyRoute != null && PropertyRoute.tryParseFull(qt.propertyRoute)?.member?.type.name == "DateOnly";
+      qt.filterType == "Enum" && !Options.isState(qt.type) ||
+      qt.filterType == "DateTime" && qt.propertyRoute != null && PropertyRoute.tryParseFull(qt.propertyRoute)?.member?.type.name == "DateOnly",
 
-    export let isState = (ti: TypeReference): boolean => ti.name.endsWith("State");
+    isState: (ti: TypeReference): boolean => ti.name.endsWith("State"),
 
-    export let defaultPagination: Pagination = {
+    defaultPagination: {
       mode: "Paginate",
       elementsPerPage: 20,
       currentPage: 1,
-    };
-
-  }
+    } as Pagination,
+  };
 
   export function findRow(fo: FindOptions, modalOptions?: ModalFindOptions): Promise<{ row: ResultRow, searchControl: SearchControlLoaded } | undefined> {
 
@@ -2039,10 +2038,10 @@ export namespace Finder {
         resultTables.push({ timeSerie: dt, rt: decompress(rt) });
 
         notifyOptions.text = JavascriptMessage.loading.niceToString() + `[${i + 1}/${dates.length}]`;
-        Notify.singleton?.notifyTimeout(notifyOptions);
+        Notify.getSingleton()?.notifyTimeout(notifyOptions);
       }
 
-      Notify.singleton?.remove(notifyOptions);
+      Notify.getSingleton()?.remove(notifyOptions);
 
       const index = request.columns.findIndex(a => a.token == timeSeries);
 
@@ -2175,7 +2174,7 @@ export namespace Finder {
       }
     }
 
-    export var encodeModel: { [typeName: string]: (model: any) => string } = {};
+    export const encodeModel: { [typeName: string]: (model: any) => string } = {};
 
     export function stringValue(value: any): string {
 

@@ -16,11 +16,11 @@ import { EntityOperationSettings, Operations } from "../../Signum/React/Operatio
 
 export namespace AuthClient {
   
-  export let pendingPasswordChangeUser: UserEntity | undefined;
+  let pendingPasswordChangeUser: UserEntity | undefined;
+  export function getPendingPasswordChangeUser(): UserEntity | undefined { return pendingPasswordChangeUser; }
+  export function setPendingPasswordChangeUser(v: UserEntity | undefined): void { pendingPasswordChangeUser = v; }
 
   export interface PasswordValidationResult { message: string, level: "error" | "warning" }
-
-  export let validatePassword: ((password: string, user: UserEntity) => Promise<PasswordValidationResult | null>) | undefined = undefined;
 
   export function startPublic(options: { routes: RouteObject[], userTicket: boolean, notifyLogout: boolean }): void {
     Options.userTicket = options.userTicket;
@@ -46,10 +46,20 @@ export namespace AuthClient {
   }
   
   
-  export namespace Options {
-    export let AuthHeader = "Authorization";
-    export let disableWindowsAuthentication = false;
-  }
+  export const Options = {
+    AuthHeader: "Authorization",
+    disableWindowsAuthentication: false,
+    validatePassword: undefined as ((password: string, user: UserEntity) => Promise<PasswordValidationResult | null>) | undefined,
+    getCookie(): string | null { return Cookies.get("sfUser"); },
+    removeCookie(): void { return Cookies.remove("sfUser", "/", document.location.hostname); },
+    onLogout: (): Promise<void> => {
+      throw new Error("onLogout should be defined (check MainPublic.tsx in Southwind)");
+    },
+    onLogin: (_back?: string): void => {
+      throw new Error("onLogin should be defined (check MainPublic.tsx in Southwind)");
+    },
+    userTicket: false,
+  };
   
   var notifyLogout: boolean;
   
@@ -120,7 +130,7 @@ export namespace AuthClient {
     await Options.onLogout();
   }
   
-  Services.AuthTokenFilter.addAuthToken = addAuthToken;
+  Services.AuthTokenFilter.Options.addAuthToken = addAuthToken;
   
   export const onCurrentUserChanged: Array<(newUser: UserEntity | undefined, avoidReRender?: boolean) => void> = [];
   
@@ -251,21 +261,6 @@ export namespace AuthClient {
       localStorage.setItem('requestLogout' + Services.SessionSharing.getAppName(), user.userName + "&&" + new Date().toString());
   }
   
-  export namespace Options {
-  
-    export function getCookie(): string | null { return Cookies.get("sfUser"); }
-    export function removeCookie(): void { return Cookies.remove("sfUser", "/", document.location.hostname); }
-  
-    export let onLogout: () => Promise<void> = () => {
-      throw new Error("onLogout should be defined (check MainPublic.tsx in Southwind)");
-    }
-  
-    export let onLogin: (back?: string) => void = () => {
-      throw new Error("onLogin should be defined (check MainPublic.tsx in Southwind)");
-    }
-  
-    export let userTicket: boolean;
-  }
   
   export type AuthenticationType = "database" | "resetPassword" | "changePassword" | "api-key" | "azureAD" | "cookie" | "windows";
   

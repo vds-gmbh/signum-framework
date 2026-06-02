@@ -592,7 +592,7 @@ export class SearchControlLoaded extends React.Component<SearchControlLoadedProp
                 <table aria-multiselectable="true" role="grid"
                   aria-label={this.createCaption()}
                   className={classes("sf-search-results table table-hover table-sm", this.props.view && "sf-row-view")} onContextMenu={this.props.showContextMenu(this.props.findOptions) != false ? this.handleOnContextMenu : undefined}>
-                  {AccessibleTable.ariaLabelAsCaption && <caption>{this.createCaption()}</caption>}
+                  {AccessibleTable.Options.ariaLabelAsCaption && <caption>{this.createCaption()}</caption>}
                   <thead>
                     {this.renderHeaders()}
                   </thead>

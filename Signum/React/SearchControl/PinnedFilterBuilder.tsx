@@ -181,6 +181,6 @@ export function getAllPinned(filterOptions: FilterOptionParsed[]): FilterOptionP
   return direct.concat(recursive);
 }
 
-export namespace PinnedFilterBuilderOptions {
-  export let searchTextTimeout = (f: FilterOptionParsed): number => 400;
-}
+export const PinnedFilterBuilderOptions = {
+  searchTextTimeout: (f: FilterOptionParsed): number => 400,
+};

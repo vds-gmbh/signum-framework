@@ -1,4 +1,4 @@
-import * as React from 'react'
+﻿import * as React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { classes } from '@framework/Globals'
 import { ModelState, JavascriptMessage } from '@framework/Signum.Entities'
@@ -25,7 +25,7 @@ function LoginPage(): React.JSX.Element {
   const ctx: LoginContext = { loading, setLoading };
 
 
-  const [showLoginForm, setShowLoginForm] = React.useState<boolean>(LoginPage.showLoginForm == "yes");
+  const [showLoginForm, setShowLoginForm] = React.useState<boolean>(LoginPage.Options.showLoginForm == "yes");
 
   return (
     <div className="container sf-login-page">
@@ -35,8 +35,8 @@ function LoginPage(): React.JSX.Element {
         </div>
       </div>
       {showLoginForm && <LoginForm ctx={ctx} />}
-      {LoginPage.customLoginButtons && LoginPage.customLoginButtons(ctx)}
-      {LoginPage.showLoginForm == "initially_not" && showLoginForm == false &&
+      {LoginPage.Options.customLoginButtons && LoginPage.Options.customLoginButtons(ctx)}
+      {LoginPage.Options.showLoginForm == "initially_not" && showLoginForm == false &&
         <div className="row">
           <div className="col-md-6 offset-md-3 mt-2">
             <LinkButton title={undefined} className="ms-1" id="sf-show-login-form" onClick={e => {
@@ -52,10 +52,12 @@ function LoginPage(): React.JSX.Element {
 }
 
 namespace LoginPage {
-  export let customLoginButtons: ((ctx: LoginContext) => React.ReactNode) | null = null;
-  export let showLoginForm: "yes" | "no" | "initially_not" = "yes";
-  export let usernameLabel: () => string = () => LoginAuthMessage.Username.niceToString();
-  export let resetPasswordControl = () => null as null | React.ReactElement;
+  export const Options = {
+    customLoginButtons: null as ((ctx: LoginContext) => React.ReactNode) | null,
+    showLoginForm: "yes" as "yes" | "no" | "initially_not",
+    usernameLabel: (): string => LoginAuthMessage.Username.niceToString(),
+    resetPasswordControl: () => null as null | React.ReactElement,
+  };
 }
 
 
@@ -92,7 +94,7 @@ export function LoginForm(p: { ctx: LoginContext }): React.JSX.Element {
         const back = QueryString.parse(window.location.search).back;
         if (lr.userEntity.mustChangePassword) {
           // Don't set currentUser, store it for password change page
-          AuthClient.pendingPasswordChangeUser = lr.userEntity;
+          AuthClient.setPendingPasswordChangeUser(lr.userEntity);
           AppContext.navigate("/auth/changePassword" + (back ? "?back=" + encodeURIComponent(back) : ""));
         } else {
           AuthClient.setCurrentUser(lr.userEntity);
@@ -124,10 +126,10 @@ export function LoginForm(p: { ctx: LoginContext }): React.JSX.Element {
       <div className="row">
         <div className="col-md-6 offset-md-3">
           <div className={classes("form-group mb-3", error("userName") && "has-error")}>
-            <label className="sr-only" htmlFor="userName">{LoginPage.usernameLabel()}</label>
+            <label className="sr-only" htmlFor="userName">{LoginPage.Options.usernameLabel()}</label>
             <div className="input-group mb-2 mr-sm-2 mb-sm-0">
               <div className="input-group-text"><FontAwesomeIcon aria-hidden={true} icon="user" style={{ width: "16px" }} /></div>
-              <input type="text" className="form-control" id="userName" autoComplete="username" ref={userName} placeholder={LoginPage.usernameLabel()} disabled={p.ctx.loading != null} />
+              <input type="text" className="form-control" id="userName" autoComplete="username" ref={userName} placeholder={LoginPage.Options.usernameLabel()} disabled={p.ctx.loading != null} />
             </div>
             {error("userName") && <span className="help-block text-danger">{error("userName")}</span>}
           </div>
@@ -165,9 +167,11 @@ export function LoginForm(p: { ctx: LoginContext }): React.JSX.Element {
             {p.ctx.loading == "password" ? JavascriptMessage.loading.niceToString() : AuthClient.currentUser() ? LoginAuthMessage.SwitchUser.niceToString() : LoginAuthMessage.Login.niceToString()}
           </button>
           {error("login") && <span className="help-block text-danger ms-2" style={{ color: "red" }}>{error("login")}</span>}
-          {!p.ctx.loading && LoginPage.resetPasswordControl()}
+          {!p.ctx.loading && LoginPage.Options.resetPasswordControl()}
         </div>
       </div>
     </form>
   );
 }
+
+

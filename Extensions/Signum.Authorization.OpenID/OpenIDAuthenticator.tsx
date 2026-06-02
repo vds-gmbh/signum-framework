@@ -1,4 +1,4 @@
-import * as React from 'react'
+﻿import * as React from 'react'
 import { useLocation } from 'react-router'
 import * as AppContext from '@framework/AppContext'
 import { ajaxGet, ajaxPost } from '@framework/Services'
@@ -14,14 +14,14 @@ export namespace OpenIDAuthenticator {
     var __openIDConfig = @Json.Serialize(Starter.Configuration.Value.OpenID?.ToOpenIDConfigTS());
   */
 
-  export namespace Options {
-    export let getOpenIDConfig = function (): OpenIDConfig | undefined {
+  export const Options = {
+    getOpenIDConfig: function (): OpenIDConfig | undefined {
       return window.__openIDConfig;
     }
-  }
+  };
 
   export function registerOpenIDAuthenticator(buttonContent?: React.ReactNode): void {
-    LoginPage.customLoginButtons = ctx => {
+    LoginPage.Options.customLoginButtons = ctx => {
       const config = Options.getOpenIDConfig();
       if (!config)
         return null;
@@ -29,7 +29,7 @@ export namespace OpenIDAuthenticator {
       return <OpenIDSignIn ctx={ctx} buttonContent={buttonContent} />;
     };
 
-    LoginPage.showLoginForm = "initially_not";
+    LoginPage.Options.showLoginForm = "initially_not";
 
     AuthClient.authenticators.push(loginWithOpenIDSilent);
   }
@@ -177,3 +177,4 @@ export interface OpenIDConfig {
   clientId: string;
   scopes: string[];
 }
+
