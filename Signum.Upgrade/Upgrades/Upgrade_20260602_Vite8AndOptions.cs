@@ -15,7 +15,6 @@ class Upgrade_20260602_Vite8AndOptions : CodeUpgradeBase
         uctx.ChangeCodeFile(@"Southwind.Server/package.json", file =>
         {
             file.UpdateNpmPackage("sass", "1.100.0");
-            file.UpdateNpmPackage("cross-env", "10.1.0");
             file.UpdateNpmPackage("vite", "8.0.15");
             file.UpdateNpmPackage("@vitejs/plugin-react", "6.0.2");
         });
