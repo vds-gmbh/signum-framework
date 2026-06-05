@@ -2,7 +2,6 @@ import * as React from "react";
 import { RouteObject, Location } from 'react-router'
 import * as Services from '@framework/Services';
 import { ImportComponent } from '@framework/ImportComponent'
-import LoginPage from "./Login/LoginPage";
 import * as AppContext from "@framework/AppContext";
 import { ajaxGet, ajaxPost, ServiceError } from "@framework/Services";
 import { is } from '@framework/Signum.Entities';
@@ -10,7 +9,7 @@ import { ifError } from "@framework/Globals";
 import { Cookies } from "@framework/Cookies";
 import { tryGetTypeInfo } from "@framework/Reflection";
 import * as Reflection from "@framework/Reflection";
-import { UserEntity, UserOperation} from './Signum.Authorization';
+import { LoginAuthMessage, UserEntity, UserOperation} from './Signum.Authorization';
 import { PermissionSymbol } from "@framework/Signum.Basics";
 import { EntityOperationSettings, Operations } from "../../Signum/React/Operations";
 
@@ -60,7 +59,14 @@ export namespace AuthClient {
     },
     userTicket: false,
   };
-  
+
+  export const LoginOptions = {
+    customLoginButtons: null as ((ctx: LoginContext) => React.ReactNode) | null,
+    showLoginForm: "yes" as "yes" | "no" | "initially_not",
+    usernameLabel: (): string => LoginAuthMessage.Username.niceToString(),
+    resetPasswordControl: () => null as null | React.ReactElement,
+  };
+
   var notifyLogout: boolean;
   
   export const authenticators: Array<() => Promise<AuthenticatedUser | undefined>> = [];
@@ -255,7 +261,14 @@ export namespace AuthClient {
         }
       });
   }
-  
+
+  export interface LoginContext {
+    loading: string | undefined;
+    setLoading: (loading: string | undefined) => void;
+    userNameRef?: React.RefObject<HTMLInputElement | null>;
+  }
+
+
   export function logoutOtherTabs(user: UserEntity): void {
     if (notifyLogout)
       localStorage.setItem('requestLogout' + Services.SessionSharing.getAppName(), user.userName + "&&" + new Date().toString());

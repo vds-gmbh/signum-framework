@@ -1,4 +1,4 @@
-﻿import * as React from "react";
+import * as React from "react";
 import * as msal from "@azure/msal-browser";
 import * as AppContext from "@framework/AppContext";
 import * as Reflection from "@framework/Reflection";
@@ -9,11 +9,10 @@ import MessageModal, { MessageModalHandler } from "@framework/Modals/MessageModa
 import { AuthError } from "@azure/msal-browser";
 import { JavascriptMessage } from "@framework/Signum.Entities";
 import { LinkButton } from "@framework/Basics/LinkButton";
-import LoginPage, { LoginContext } from "../Signum.Authorization/Login/LoginPage";
-import { AuthClient } from "../Signum.Authorization/AuthClient";
 import ErrorModal from "@framework/Modals/ErrorModal";
 import { LoginAuthMessage, ResetPasswordB2CMessage } from "../Signum.Authorization/Signum.Authorization";
 import { AzureADType } from "./Signum.Authorization.AzureAD";
+import { AuthClient } from "../Signum.Authorization/AuthClient";
 
 export namespace AzureADAuthenticator {
 
@@ -34,7 +33,7 @@ export namespace AzureADAuthenticator {
     if (Reflection.isStarted())
       throw new Error("call AzureADClient.registerAzureADAuthenticator in MainPublic.tsx before AuthClient.autoLogin");
 
-    LoginPage.Options.customLoginButtons = ctx => {
+    AuthClient.LoginOptions.customLoginButtons = ctx => {
 
       const config = Options.getAzureADConfig("default");
       if (!config)
@@ -52,7 +51,7 @@ export namespace AzureADAuthenticator {
       return null;
     };
 
-    LoginPage.Options.showLoginForm = "initially_not";
+    AuthClient.LoginOptions.showLoginForm = "initially_not";
 
     var config = getCurrentADConfig();
 
@@ -104,7 +103,7 @@ export namespace AzureADAuthenticator {
     throw new Error("Unexpected AzureAD type");
   }
 
-  export async function signIn(ctx: LoginContext, adVariant: string, b2c_UserFlow?: B2C_UserFlows, e?: React.MouseEvent): Promise<void> {
+  export async function signIn(ctx: AuthClient.LoginContext, adVariant: string, b2c_UserFlow?: B2C_UserFlows, e?: React.MouseEvent): Promise<void> {
 
     e?.preventDefault();
 
@@ -149,7 +148,7 @@ export namespace AzureADAuthenticator {
     }
   }
 
-  export async function resetPasswordB2C(ctx: LoginContext, adVariant: string): Promise<void> {
+  export async function resetPasswordB2C(ctx: AuthClient.LoginContext, adVariant: string): Promise<void> {
     ctx.setLoading("azureAD");
 
     var promise: Promise<void> | undefined;
@@ -336,7 +335,7 @@ export declare namespace MicrosoftSignIn {
 
 MicrosoftSignIn.iconUrl = AppContext.toAbsoluteUrl("/signin_light.svg");
 
-export function MicrosoftSignIn({ ctx, adVariant = "default" }: { ctx: LoginContext, adVariant?: string }): React.JSX.Element {
+export function MicrosoftSignIn({ ctx, adVariant = "default" }: { ctx: AuthClient.LoginContext, adVariant?: string }): React.JSX.Element {
   return (
     <div className="row mt-2">
       <div className="col-md-6 offset-md-3">
@@ -349,7 +348,7 @@ export function MicrosoftSignIn({ ctx, adVariant = "default" }: { ctx: LoginCont
   );
 }
 
-export function AzureB2CSignIn({ ctx, adVariant = "default" }: { ctx: LoginContext, adVariant?: string }): React.JSX.Element {
+export function AzureB2CSignIn({ ctx, adVariant = "default" }: { ctx: AuthClient.LoginContext, adVariant?: string }): React.JSX.Element {
   const config = AzureADAuthenticator.Options.getAzureADConfig(adVariant);
   const hasSignInFlow = Boolean(config?.signIn_UserFlow);
   const hasSignUpFlow = Boolean(config?.signUp_UserFlow);

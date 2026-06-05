@@ -1,4 +1,4 @@
-﻿import * as React from "react";
+import * as React from "react";
 import { RouteObject } from 'react-router'
 import { Link } from 'react-router-dom'
 import { ImportComponent } from '@framework/ImportComponent'
@@ -17,7 +17,7 @@ export namespace ResetPasswordClient {
     options.routes.push({ path: "/auth/forgotPasswordEmail", element: <ImportComponent onImport={() => import("./ForgotPasswordEmailPage")} /> });
     options.routes.push({ path: "/auth/resetPassword", element: <ImportComponent onImport={() => import("./ResetPassword")} /> });
   
-    LoginPage.Options.resetPasswordControl = () => <span>
+    AuthClient.LoginOptions.resetPasswordControl = () => <span>
       &nbsp;
       &nbsp;
       <Link to="/auth/forgotPasswordEmail">{LoginAuthMessage.IHaveForgottenMyPassword.niceToString()}</Link>
