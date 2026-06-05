@@ -12,7 +12,6 @@ export function HtmlViewer(p: { text: string; htmlAttributes?: React.HTMLAttribu
         binding={binding}
         htmlAttributes={p.htmlAttributes}
         small
-        extensions={[]}
       />
     </div>
   );
