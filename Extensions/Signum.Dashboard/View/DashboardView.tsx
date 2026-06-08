@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Link } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { classes, getColorContrasColorBWByHex} from '@framework/Globals'
+import { classes, getColorContrasColorBWByHex } from '@framework/Globals'
 import { Entity, getToString, toLite, translated } from '@framework/Signum.Entities'
 import { TypeContext, mlistItemContext } from '@framework/TypeContext'
 import { DashboardClient, PanelPartContentProps } from '../DashboardClient'
@@ -26,7 +26,7 @@ export default function DashboardView(p: { dashboard: DashboardEntity, cachedQue
   function renderBasic() {
     const db = p.dashboard;
     const ctx = TypeContext.root(db);
-  
+
     return (
       <div>
         <div className="sf-dashboard-view">
@@ -108,6 +108,7 @@ export default function DashboardView(p: { dashboard: DashboardEntity, cachedQue
         </div>}
       <div>
         {dashboardController.pinnedFilters.size > 0 && <PinnedFilterBuilder
+          queryDescription={dashboardController.queryDescription}
           filterOptions={Array.from(dashboardController.pinnedFilters.values()).flatMap(a => a.pinnedFilters)}
           onFiltersChanged={forceUpdate} />}
         {
@@ -286,14 +287,14 @@ export function PanelPart(p: PanelPartProps): React.JSX.Element | null {
   const cardContent = (
     <div className={classes("card", !part.customColor && "border-tertiary", "shadow-sm", "mb-4")} style={{ flex: p.flex ? 1 : undefined,/* overflow: "hidden"*/ }}>
       <div className={classes("card-header fw-bold", "sf-show-hover", "d-flex", !part.customColor)}
-        style={{ backgroundColor: part.customColor ?? undefined, color: part.customColor ? getColorContrasColorBWByHex(part.customColor) : undefined}}
+        style={{ backgroundColor: part.customColor ?? undefined, color: part.customColor ? getColorContrasColorBWByHex(part.customColor) : undefined }}
       >
 
         {renderer.handleTitleClick == undefined ? title :
           <LinkButton title={undefined} className="sf-pointer"
             style={{ color: part.titleColor ?? (part.customColor ? getColorContrasColorBWByHex(part.customColor) : undefined), textDecoration: "none" }}
             onClick={e => { renderer.handleTitleClick!(content, lite, customDataRef, e); }}>
-          {title}
+            {title}
           </LinkButton>
         }
         {

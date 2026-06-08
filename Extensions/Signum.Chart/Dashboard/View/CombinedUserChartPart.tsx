@@ -32,7 +32,7 @@ export default function CombinedUserChartPart(p: PanelPartContentProps<CombinedU
 
   const [showData, setShowData] = React.useState(p.content.showData);
 
-  
+
 
   React.useEffect(() => {
     var abortController = new AbortController();
@@ -146,6 +146,7 @@ export default function CombinedUserChartPart(p: PanelPartContentProps<CombinedU
   return (
     <div>
       {infos.map((info, i) => <PinnedFilterBuilder key={i}
+        queryDescription={info.chartRequest!}
         filterOptions={info.chartRequest!.filterOptions}
         pinnedFilterVisible={fop => fop.dashboardBehaviour == null}
         onFiltersChanged={(fpo, avoidSearch) => !avoidSearch && info.makeQuery!()} extraSmall={true} />
@@ -153,7 +154,7 @@ export default function CombinedUserChartPart(p: PanelPartContentProps<CombinedU
       {p.content.allowChangeShowData &&
         <label>
           <input type="checkbox" className="form-check-input" checked={showData} onChange={e => setShowData(e.currentTarget.checked)} />
-        {" "}{CombinedUserChartPartEntity.nicePropertyName(a => a.showData)}
+          {" "}{CombinedUserChartPartEntity.nicePropertyName(a => a.showData)}
         </label>}
       {showData ?
         infos.map((c, i) => c.result == null ? <span key={i}>{JavascriptMessage.loading.niceToString()}</span> :

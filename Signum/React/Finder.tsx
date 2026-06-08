@@ -13,7 +13,7 @@ import {
   ResultTable, ResultRow, OrderOption, isList, ColumnOptionsMode, FilterRequest, ModalFindOptions, OrderRequest,
   FilterGroupOptionParsed, FilterConditionOptionParsed, FilterGroupOption,
   FilterConditionOption, FilterGroupRequest, FilterConditionRequest, PinnedFilter, SystemTime,
-  toPinnedFilterParsed, isActive, ModalFindOptionsMany, canSplitValue, getFilterOperations, isFilterGroup, 
+  toPinnedFilterParsed, isActive, ModalFindOptionsMany, canSplitValue, getFilterOperations, isFilterGroup, isFilterCondition,
   QueryDescriptionDTO,
   QueryTokenWithoutParent
 } from './FindOptions';
@@ -38,7 +38,7 @@ import EntityLink from './SearchControl/EntityLink';
 import SearchControlLoaded, { SearchControlMobileOptions, ColumnParsed } from './SearchControl/SearchControlLoaded';
 import { ImportComponent } from './ImportComponent'
 import { ButtonBarElement } from "./TypeContext";
-import { EntityBaseController, TypeContext } from "./Lines";
+import { EntityBaseController, TypeContext, EntityLine, FormGroup } from "./Lines";
 import { clearContextualItems } from "./SearchControl/ContextualItems";
 import { clearManualSubTokens } from "./SearchControl/QueryTokenBuilder";
 import { APIHookOptions, useAPI } from "./Hooks";
@@ -55,9 +55,7 @@ import ProgressBar from "./Components/ProgressBar";
 import Notify, { NotifyOptions } from "./Frames/Notify";
 import Exception from "./Exceptions/Exception";
 
-
 export namespace Finder {
-
 
   export const querySettings: { [queryKey: string]: QuerySettings } = {};
 
@@ -529,7 +527,7 @@ export namespace Finder {
 
 
 
-  export async function getPropsFromFilters(type: PseudoType, filterOptionsParsed: FilterOptionParsed[], options? : { avoidCustom?: boolean}): Promise<any> {
+  export async function getPropsFromFilters(type: PseudoType, filterOptionsParsed: FilterOptionParsed[], options?: { avoidCustom?: boolean }): Promise<any> {
 
     const ti = getTypeInfo(type);
     if (!(options?.avoidCustom) && querySettings[ti.name]?.customGetPropsFromFilter) {
@@ -1515,7 +1513,7 @@ export namespace Finder {
 
         return ({
           token: token,
-          operation: fo.operation ?? (token && getFilterOperations(token).orderBy(a=>a == "EqualTo" ? 0 : 1).firstOrNull()) ?? "EqualTo",
+          operation: fo.operation ?? (token && getFilterOperations(token).orderBy(a => a == "EqualTo" ? 0 : 1).firstOrNull()) ?? "EqualTo",
           value: fo.value,
           frozen: fo.frozen || false,
           removeElementWarning: fo.removeElementWarning,
@@ -2493,6 +2491,7 @@ export namespace Finder {
     label?: string;
     mandatory?: boolean;
     forceNullable?: boolean;
+    queryDescription: QueryDescription;
     filterOptions: FilterOptionParsed[];
     handleValueChange: (f: FilterOptionParsed, avoidSearch?: boolean) => void;
   }
@@ -2511,4 +2510,54 @@ export namespace Finder {
     return rule.renderValue(f, ffc);
   }
 
+  export function registerFilterValueFormatRulesWithContextFor<T extends Entity, D extends Entity>(
+    type: Type<T>,
+    options: {
+      getDomain: (token: QueryToken, ffc: FilterFormatterContext) => Lite<D> | Lite<D>[] | null | undefined;
+      filterField: (a : T) => Lite<D>;
+      createFindOptions?: (domain: Lite<D> | Lite<D>[]) => FindOptions;
+    }
+  ): void {
+
+    const typeName = type.typeName;
+    const member = type.memberInfo(options.filterField);
+    const getFindOptions = (domain: Lite<D> | Lite<D>[]): FindOptions =>
+      options.createFindOptions?.(domain) ?? {
+        queryName: type,
+        filterOptions:
+          [{ token: type.token(a=>a.entity).append(options.filterField), operation: Array.isArray(domain) ? "IsIn" : "EqualTo", value: domain }]
+      };
+
+    filterValueFormatRules.push(
+      {
+        name: `Lite_${typeName}`,
+        applicable: (f, ffc) => isFilterCondition(f) && f.token?.filterType == "Lite" && f.token.type.name == typeName,
+        renderValue: (f, ffc) => {
+          const domain = options.getDomain(f.token!, ffc);
+          const fo = domain != null ? getFindOptions(domain) : undefined;
+          return <EntityLine ctx={ffc.ctx} type={f.token!.type} create={false}
+            onChange={() => ffc.handleValueChange(f)} label={ffc.label} mandatory={ffc.mandatory}
+            helpText={fo == null ? CollectionMessage.No0Found.niceToString(member.niceName) : undefined}
+            findOptions={fo}
+          />;
+        }
+      },
+      {
+        name: `MultiEntity_${typeName}`,
+        applicable: (f, ffc) => isFilterCondition(f) && isList(f.operation!) && f.token?.filterType == "Lite" && f.token.type.name == typeName,
+        renderValue: (f, ffc) => {
+          const domain = options.getDomain(f.token!, ffc);
+          const fo = domain != null ? getFindOptions(domain) : undefined;
+          return (
+            <FormGroup ctx={ffc.ctx} label={ffc.label}>
+              {() => <FinderRules.MultiEntity values={f.value} readOnly={(f as FilterConditionOptionParsed).frozen}
+                type={f.token!.type.name} onChange={() => ffc.handleValueChange(f)}
+                findOptions={fo}
+                helpText={fo == null ? CollectionMessage.No0Found.niceToString(member.niceName) : undefined} />}
+            </FormGroup>
+          );
+        }
+      }
+    );
+  }
 }

@@ -339,7 +339,7 @@ export default function FilterBuilder(p: FilterBuilderProps): React.ReactElement
 
       {showPinnedFiltersOptions && !p.avoidPreview && <div className="mb-3">
         <h1 className="lead ms-2 mb-0 h4">Preview</h1>
-        <PinnedFilterBuilder filterOptions={p.filterOptions} onFiltersChanged={handleFilterChanged} highlightFilter={highlightFilter} showGrid={true} />
+        <PinnedFilterBuilder queryDescription={p.queryDescription} filterOptions={p.filterOptions} onFiltersChanged={handleFilterChanged} highlightFilter={highlightFilter} showGrid={true} />
       </div>
       }
     </>
@@ -633,7 +633,7 @@ export function FilterGroupComponent(p: FilterGroupComponentsProps): React.React
 
     const ctx = new TypeContext<any>(undefined, { formGroupStyle: "None", readOnly: readOnly, formSize: "xs" }, undefined, Binding.create(f, a => a.value));
 
-    return Finder.renderFilterValue(f, { ctx, filterOptions: p.allFilterOptions, handleValueChange: handleValueChange });
+    return Finder.renderFilterValue(f, { ctx, queryDescription: p.queryDescription, filterOptions: p.allFilterOptions, handleValueChange: handleValueChange });
   }
 
   function handleValueChange() {
@@ -871,7 +871,7 @@ export function FilterConditionComponent(p: FilterConditionComponentProps): Reac
 
     const ctx = new TypeContext<any>(undefined, { formGroupStyle: "None", readOnly: readOnly, formSize: "xs" }, undefined, Binding.create(f, a => a.value));
 
-    return Finder.renderFilterValue(f, { ctx: ctx, filterOptions: p.allFilterOptions, handleValueChange });
+    return Finder.renderFilterValue(f, { ctx: ctx, queryDescription: p.queryDescription, filterOptions: p.allFilterOptions, handleValueChange });
   }
 
   function handleValueChange() {

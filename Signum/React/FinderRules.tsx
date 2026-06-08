@@ -3,7 +3,7 @@ import { DateTime, DateTimeUnit, Duration } from 'luxon'
 import { Navigator } from "./Navigator"
 import { Dic, classes } from './Globals'
 import {
-  FilterOptionParsed,
+  FilterOptionParsed, FindOptions,
   FilterGroupOptionParsed, FilterConditionOptionParsed, isFilterGroup, isFilterCondition,
   getFilterOperations, getFilterGroupUnifiedFilterType, FilterConditionOption, isList
 } from './FindOptions';
@@ -824,21 +824,21 @@ export function MultiValue(p: MultiValueProps): React.ReactElement {
 }
 
 
-export function MultiEntity(p: { values: Lite<Entity>[], readOnly: boolean, type: string, onChange: () => void, vertical?: boolean }): React.ReactElement {
+export function MultiEntity(p: { values: Lite<Entity>[], readOnly: boolean, type: string, onChange: () => void, vertical?: boolean, findOptions?: FindOptions, helpText?: React.ReactNode }): React.ReactElement {
   const mListEntity = React.useRef<MList<Lite<Entity>>>([]);
-
 
   mListEntity.current.clear();
   mListEntity.current.push(...p.values.map(lite => newMListElement(lite)));
 
   var ctx = new TypeContext<MList<Lite<Entity>>>(undefined, { formGroupStyle: "None", readOnly: p.readOnly, formSize: "xs" }, undefined, Binding.create(mListEntity, a => a.current));
 
-
-  return <EntityStrip ctx={ctx} type={{ name: p.type, isLite: true, isCollection: true }} create={false} vertical={p.vertical} onChange={() => {
-    p.values.clear();
-    p.values.push(...mListEntity.current.map(a => a.element));
-    p.onChange();
-  }} />
+  return <EntityStrip ctx={ctx} type={{ name: p.type, isLite: true, isCollection: true }} create={false} vertical={p.vertical}
+    findOptions={p.findOptions} helpText={p.helpText}
+    onChange={() => {
+      p.values.clear();
+      p.values.push(...mListEntity.current.map(a => a.element));
+      p.onChange();
+    }} />
 }
 
 
