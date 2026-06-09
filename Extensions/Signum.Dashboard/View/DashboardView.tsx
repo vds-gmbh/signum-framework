@@ -107,10 +107,12 @@ export default function DashboardView(p: { dashboard: DashboardEntity, cachedQue
           {DashboardClient.onDashboardPageActions.map((fn, i) => <React.Fragment key={i}>{fn(p.dashboard)}</React.Fragment>)}
         </div>}
       <div>
-        {dashboardController.pinnedFilters.size > 0 && <PinnedFilterBuilder
-          queryDescription={dashboardController.queryDescription}
-          filterOptions={Array.from(dashboardController.pinnedFilters.values()).flatMap(a => a.pinnedFilters)}
-          onFiltersChanged={forceUpdate} />}
+        {Array.from(dashboardController.pinnedFilters.values())
+          .filter(pf => pf.pinnedFilters.length > 0)
+          .map((pf, i) => <PinnedFilterBuilder key={i}
+            queryDescription={pf.queryDescription}
+            filterOptions={pf.pinnedFilters}
+            onFiltersChanged={forceUpdate} />)}
         {
           p.dashboard.combineSimilarRows ?
             renderCombinedRows() :

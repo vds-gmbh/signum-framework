@@ -117,7 +117,7 @@ export function isActive(fo: FilterOptionParsed | FilterOption): boolean {
     (fo.pinned.active == "Checkbox_Unchecked" ||
       fo.pinned.active == "NotCheckbox_Unchecked" ||
       fo.pinned.active == "WhenHasValue" && fo.value == null ||
-      fo.pinned.splitValue && !fo.value));
+      fo.pinned.splitValue && (fo.value == null || fo.value === "" || Array.isArray(fo.value) && fo.value.length == 0)));
 }
 
 export function isCheckBox(active: PinnedFilterActive | undefined): boolean {

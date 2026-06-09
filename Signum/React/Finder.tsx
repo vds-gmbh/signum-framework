@@ -1047,7 +1047,7 @@ export namespace Finder {
     if (fop.pinned && overridenValue == null) {
       if (fop.pinned.splitValue) {
 
-        if (!fop.value)
+        if (!fop.value || Array.isArray(fop.value) && fop.value.length == 0)
           return undefined;
 
         if (!canSplitValue(fop))

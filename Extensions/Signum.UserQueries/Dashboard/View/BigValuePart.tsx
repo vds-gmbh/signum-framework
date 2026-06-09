@@ -45,11 +45,11 @@ export default function BigValuePart(p: PanelPartContentProps<BigValuePartEntity
 
       if (dashboardPinnedFilters.length) {
         Finder.getQueryDescription(fo.queryName)
-          .then(qd => Finder.parseFilterOptions(dashboardPinnedFilters, foObj.groupResults ?? false, qd))
-          .then(fops => {
-            p.dashboardController.setPinnedFilter(new DashboardPinnedFilters(p.partEmbedded, getQueryKey(foObj.queryName), fops));
-            p.dashboardController.registerInvalidations(p.partEmbedded, () => updateVersion());
-          });
+          .then(qd => Finder.parseFilterOptions(dashboardPinnedFilters, foObj.groupResults ?? false, qd)
+            .then(fops => {
+              p.dashboardController.setPinnedFilter(new DashboardPinnedFilters(p.partEmbedded, getQueryKey(foObj.queryName), qd, fops));
+              p.dashboardController.registerInvalidations(p.partEmbedded, () => updateVersion());
+            }));
       } else {
         p.dashboardController.clearPinnesFilter(p.partEmbedded);
         p.dashboardController.registerInvalidations(p.partEmbedded, () => updateVersion());

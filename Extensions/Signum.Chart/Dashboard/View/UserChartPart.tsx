@@ -74,7 +74,7 @@ export default function UserChartPart(p: PanelPartContentProps<UserChartPartEnti
     }
 
     if (dashboardPinnedFilters) {
-      p.dashboardController.setPinnedFilter(new DashboardPinnedFilters(p.partEmbedded, chartRequest!.queryKey, dashboardPinnedFilters));
+      p.dashboardController.setPinnedFilter(new DashboardPinnedFilters(p.partEmbedded, chartRequest!.queryKey, queryDescription!, dashboardPinnedFilters));
     } else {
       p.dashboardController.clearPinnesFilter(p.partEmbedded);
     }
