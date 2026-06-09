@@ -3,13 +3,14 @@ import { DateTime, DateTimeUnit, Duration } from 'luxon'
 import { Navigator } from "./Navigator"
 import { Dic, classes } from './Globals'
 import {
-  FilterOptionParsed, FindOptions,
+  FilterOptionParsed, FindOptions, QueryDescription,
   FilterGroupOptionParsed, FilterConditionOptionParsed, isFilterGroup, isFilterCondition,
   getFilterOperations, getFilterGroupUnifiedFilterType, FilterConditionOption, isList
 } from './FindOptions';
 import { hasToArray, QueryToken } from './QueryToken';
 import { FilterOperation } from './Signum.DynamicQuery';
-import { Entity, Lite, SearchMessage, JavascriptMessage, getToString, MList, newMListElement } from './Signum.Entities';
+import { Entity, Lite, SearchMessage, JavascriptMessage, getToString, MList, newMListElement, liteKey } from './Signum.Entities';
+import { CollectionMessage } from './Signum.External';
 import {
   TypeReference,
   tryGetTypeInfos, getEnumInfo, toLuxonFormat, toNumberFormat,
@@ -20,7 +21,7 @@ import {
 import EntityLink from './SearchControl/EntityLink';
 import SearchControlLoaded from './SearchControl/SearchControlLoaded';
 import { EntityBaseController, EntityCombo, EntityLine, EntityStrip, FormGroup, StyleContext, TypeContext } from "./Lines";
-import { similarToken } from "./Search";
+import { similarToken, findFilterValue } from "./Search";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { TextHighlighter } from "./Components/Typeahead";
 import { Finder } from "./Finder";
@@ -578,6 +579,55 @@ export function initQuickFilterRules(): Finder.QuickFilterRule[] {
 
 
 
+function findParentTokensInRegistry(
+  filterToken: QueryToken,
+  qd: QueryDescription,
+  registry: Map<string, Finder.DomainRegistryEntry>
+): { tokenStr: QueryTokenString<any>, typeName: string }[] {
+  const result: { tokenStr: QueryTokenString<any>, typeName: string }[] = [];
+
+  let current: QueryToken | undefined = filterToken.parent;
+  while (current) {
+    if (!current.type.isCollection && registry.has(current.type.name)) {
+      result.push({ tokenStr: new QueryTokenString(current.fullKey), typeName: current.type.name });
+    }
+    current = current.parent;
+  }
+
+  const rootTypeName = qd.columns["Entity"]?.type.name;
+  if (rootTypeName && registry.has(rootTypeName))
+    result.push({ tokenStr: new QueryTokenString("Entity"), typeName: rootTypeName });
+
+  return result;
+}
+
+function getDomainFindOptions(filterToken: QueryToken, ffc: Finder.FilterFormatterContext): FindOptions | undefined {
+  const entry = Finder.domainRegistry.get(filterToken.type.name)!;
+  const parents = findParentTokensInRegistry(filterToken, ffc.queryDescription, Finder.domainRegistry);
+  const allDomains: any[] = [];
+  for (const parent of parents) {
+    const parentEntry = Finder.domainRegistry.get(parent.typeName)!;
+    const val = findFilterValue(ffc.filterOptions, parent.tokenStr.append(parentEntry.getDomainField), op => op == "EqualTo" || op == "IsIn");
+    if (val != null) {
+      if (Array.isArray(val)) allDomains.push(...val);
+      else allDomains.push(val);
+    }
+  }
+  if (allDomains.length == 0)
+    return undefined;
+
+  var distinctDomains = allDomains.distinctBy(liteKey);
+
+  return {
+    queryName: entry.type,
+    filterOptions: [{
+      token: entry.type.token((a: any) => a.entity).append(entry.getDomainField),
+      operation: distinctDomains.length > 1 ? "IsIn" : "EqualTo",
+      value: distinctDomains.length > 1 ? distinctDomains : distinctDomains[0]
+    }]
+  };
+}
+
 export function initFilterValueFormatRules(): Finder.FilterValueFormatter[] {
   return [
 
@@ -642,7 +692,11 @@ export function initFilterValueFormatRules(): Finder.FilterValueFormatter[] {
       name: "Lite",
       applicable: (f, ffc) => isFilterCondition(f) && f.token?.filterType == "Lite",
       renderValue: (f, ffc) => {
-        return <EntityLine ctx={ffc.ctx} type={f.token!.type} create={false} onChange={() => ffc.handleValueChange(f)} label={ffc.label} mandatory={ffc.mandatory} />;
+        const fo = Finder.domainRegistry.has(f.token!.type.name) ? getDomainFindOptions(f.token!, ffc) : undefined;
+        return <EntityLine ctx={ffc.ctx} type={f.token!.type} create={false}
+          onChange={() => ffc.handleValueChange(f)} label={ffc.label} mandatory={ffc.mandatory}
+          findOptions={fo}
+        />;
       }
     },
     {
@@ -689,11 +743,12 @@ export function initFilterValueFormatRules(): Finder.FilterValueFormatter[] {
       name: "MultiEntity",
       applicable: (f, ffc) => isFilterCondition(f) && isList(f.operation!) && f.token!.filterType == "Lite",
       renderValue: (f, ffc) => {
-        const fc = f as FilterConditionOptionParsed;
-
+        const fo = Finder.domainRegistry.has(f.token!.type.name) ? getDomainFindOptions(f.token!, ffc) : undefined;
         return (
           <FormGroup ctx={ffc.ctx} label={ffc.label}>
-            {inputId => <MultiEntity values={f.value} readOnly={f.frozen} type={f.token!.type.name} onChange={() => ffc.handleValueChange(f)} />}
+            {inputId => <MultiEntity values={f.value} readOnly={f.frozen} type={f.token!.type.name} onChange={() => ffc.handleValueChange(f)}
+              findOptions={fo}
+            />}
           </FormGroup>
         );
       }
@@ -749,6 +804,59 @@ export function initFilterValueFormatRules(): Finder.FilterValueFormatter[] {
           filterOperation={filterOperation}
           onChange={(() => ffc.handleValueChange(f, isComplex))}
           label={ffc.label || SearchMessage.Search.niceToString()} />;
+      }
+    },
+    {
+      name: "FilterGroup_MultiValue",
+      applicable: (f, ffc) => isFilterGroup(f) &&
+        f.filters.every(sf => isFilterCondition(sf) && sf.token?.filterType != "Lite") &&
+        f.filters.some(sf => isFilterCondition(sf) && isList(sf.operation!)),
+      renderValue: (f, ffc) => {
+        const fg = f as FilterGroupOptionParsed;
+        if (!fg.pinned?.splitValue && fg.filters.some(sf => isFilterCondition(sf) && !isList((sf as FilterConditionOptionParsed).operation!)))
+          throw new Error(`FilterGroup_MultiValue: non-collection operations found in FilterGroup with splitValue=false`);
+
+        if (!ffc.ctx.value)
+          ffc.ctx.value = [];
+
+        const firstCond = fg.filters.find(sf => isFilterCondition(sf)) as FilterConditionOptionParsed;
+        const pseudoFilter = { ...firstCond, operation: "EqualTo" } as FilterConditionOptionParsed;
+        const rule = Finder.filterValueFormatRules.filter(r => r.applicable(pseudoFilter, ffc)).last();
+
+        return (
+          <FormGroup ctx={ffc.ctx} label={ffc.label}>
+            {inputId => <MultiValue values={ffc.ctx.value} readOnly={fg.frozen}
+              onChange={() => ffc.handleValueChange(f)}
+              onRenderItem={ctx => rule.renderValue(firstCond, { ...ffc, ctx, mandatory: true })} />}
+          </FormGroup>
+        );
+      }
+    },
+    {
+      name: "FilterGroup_MultiEntity",
+      applicable: (f, ffc) => isFilterGroup(f) &&
+        f.filters.every(sf => isFilterCondition(sf) && sf.token?.filterType == "Lite") &&
+        f.filters.some(sf => isFilterCondition(sf) && isList(sf.operation!)),
+      renderValue: (f, ffc) => {
+        const fg = f as FilterGroupOptionParsed;
+        if (!fg.pinned?.splitValue && fg.filters.some(sf => isFilterCondition(sf) && !isList((sf as FilterConditionOptionParsed).operation!)))
+          return <span className="text-danger">non-collection operations found in FilterGroup with splitValue=false</span>;
+
+        if (!ffc.ctx.value)
+          ffc.ctx.value = [];
+
+        const firstLiteCond = fg.filters.find(sf => isFilterCondition(sf) && sf.token?.filterType == "Lite") as FilterConditionOptionParsed;
+        const typeName = firstLiteCond.token!.type.name;
+        const entry = Finder.domainRegistry.get(typeName);
+        const fo = entry ? getDomainFindOptions(firstLiteCond.token!, ffc) : undefined;
+
+        return (
+          <FormGroup ctx={ffc.ctx} label={ffc.label}>
+            {() => <MultiEntity values={ffc.ctx.value} readOnly={fg.frozen} type={typeName}
+              onChange={() => ffc.handleValueChange(f)}
+              findOptions={fo} />}
+          </FormGroup>
+        );
       }
     },
   ]

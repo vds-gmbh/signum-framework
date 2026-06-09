@@ -13,7 +13,7 @@ import {
   ResultTable, ResultRow, OrderOption, isList, ColumnOptionsMode, FilterRequest, ModalFindOptions, OrderRequest,
   FilterGroupOptionParsed, FilterConditionOptionParsed, FilterGroupOption,
   FilterConditionOption, FilterGroupRequest, FilterConditionRequest, PinnedFilter, SystemTime,
-  toPinnedFilterParsed, isActive, ModalFindOptionsMany, canSplitValue, getFilterOperations, isFilterGroup, isFilterCondition,
+  toPinnedFilterParsed, isActive, ModalFindOptionsMany, canSplitValue, getFilterOperations, isFilterGroup, isFilterCondition, isGroupList,
   QueryDescriptionDTO,
   QueryTokenWithoutParent
 } from './FindOptions';
@@ -1031,6 +1031,7 @@ export namespace Finder {
 
   interface OverridenValue {
     value: any;
+    convertListToScalar?: boolean;
   }
 
 
@@ -1075,10 +1076,18 @@ export namespace Finder {
             filters: parts.map(part => toFilterRequest({ ...fop, operation: newOperation }, { value: part })),
           }) as FilterGroupRequest;
         }
+
+        if (isFilterGroup(fop) && Array.isArray(fop.value)) {
+          const parts = fop.value as any[];
+          return ({
+            groupOperation: "And",
+            filters: parts.map(part => toFilterRequest(fop, { value: part, convertListToScalar: true })).filter(a => a != null)
+          }) as FilterGroupRequest;
+        }
       }
       else if (isFilterGroup(fop)) {
 
-        if (fop.pinned.active == "WhenHasValue" && (fop.value == null || fop.value == "")) {
+        if (fop.pinned.active == "WhenHasValue" && (fop.value == null || fop.value == "" || Array.isArray(fop.value) && fop.value.length == 0)) {
           return undefined;
         }
 
@@ -1104,6 +1113,10 @@ export namespace Finder {
       if (overridenValue == null && fop.pinned && fop.pinned.active == "WhenHasValue" && (fop.value == null || fop.value === ""))
         return undefined;
 
+      const effectiveOp: FilterOperation = overridenValue?.convertListToScalar && isList(fop.operation)
+        ? (fop.operation == "IsIn" ? "EqualTo" : "DistinctTo")
+        : fop.operation;
+
       const value = overridenValue ? overridenValue.value : fop.value;
 
       if (fop.token && typeof value == "string") {
@@ -1119,14 +1132,14 @@ export namespace Finder {
 
             return ({
               token: fop.token.fullKey,
-              operation: fop.operation,
+              operation: effectiveOp,
               value: undefined,
             } as FilterConditionRequest);
           }
 
           return ({
             token: fop.token.fullKey,
-            operation: fop.operation,
+            operation: effectiveOp,
             value: numVal,
           } as FilterConditionRequest);
         }
@@ -1138,14 +1151,14 @@ export namespace Finder {
 
             return ({
               token: fop.token.fullKey,
-              operation: fop.operation,
+              operation: effectiveOp,
               value: undefined,
             } as FilterConditionRequest);
           }
 
           return ({
             token: fop.token.fullKey,
-            operation: fop.operation,
+            operation: effectiveOp,
             value: value,
           } as FilterConditionRequest);
         }
@@ -1154,14 +1167,14 @@ export namespace Finder {
       if (Array.isArray(value)) {
         return ({
           token: fop.token.fullKey,
-          operation: fop.operation,
+          operation: effectiveOp,
           value: value.notNull(),
         } as FilterConditionRequest);
       }
 
       return ({
         token: fop.token.fullKey,
-        operation: fop.operation,
+        operation: effectiveOp,
         value: value,
       } as FilterConditionRequest);
     }
@@ -1537,9 +1550,17 @@ export namespace Finder {
     const needsModel: Lite<any>[] = [];
 
     function parseFilterValue(fo: FilterOptionParsed) {
-      if (isFilterGroup(fo))
+      if (isFilterGroup(fo)) {
         fo.filters.forEach(f => parseFilterValue(f));
-      else {
+
+        if (isGroupList(fo)) {
+          debugger;
+          const firstCond = fo.filters.first(f => isFilterCondition(f) && f.token != null);
+          if (!Array.isArray(fo.value))
+            fo.value = [fo.value].notNull();
+          fo.value = (fo.value as any[]).map(v => parseValue(firstCond.token!, v, needsModel));
+        }
+      } else {
         if (isList(fo.operation!)) {
           if (!Array.isArray(fo.value))
             fo.value = [fo.value].notNull();
@@ -2268,12 +2289,15 @@ export namespace Finder {
               pinned: pinned,
             }) as FilterConditionOption
           } else {
+            const filters = toFilterList(gr.elements, identation + 1, ignoreValues || shouldIgnoreValues(pinned));
             return ({
               token: parts[0] == null || parts[0].length == 0 ? null : parts[0],
               groupOperation: FilterGroupOperation.assertDefined(parts[1]),
-              value: ignoreValues ? null : unscapeTildes(parts[2]),
+              value: ignoreValues ? null :
+                isGroupList({ filters }) ? parts.slice(2).map(a => unscapeTildes(a)).notNull() :
+                unscapeTildes(parts[2]),
               pinned: pinned,
-              filters: toFilterList(gr.elements, identation + 1, ignoreValues || shouldIgnoreValues(pinned)),
+              filters,
             }) as FilterGroupOption;
           }
         });
@@ -2510,54 +2534,14 @@ export namespace Finder {
     return rule.renderValue(f, ffc);
   }
 
-  export function registerFilterValueFormatRulesWithContextFor<T extends Entity, D extends Entity>(
-    type: Type<T>,
-    options: {
-      getDomain: (token: QueryToken, ffc: FilterFormatterContext) => Lite<D> | Lite<D>[] | null | undefined;
-      filterField: (a : T) => Lite<D>;
-      createFindOptions?: (domain: Lite<D> | Lite<D>[]) => FindOptions;
-    }
-  ): void {
+  export interface DomainRegistryEntry {
+    type: Type<any>;
+    getDomainField: (e: any) => any;
+  }
 
-    const typeName = type.typeName;
-    const member = type.memberInfo(options.filterField);
-    const getFindOptions = (domain: Lite<D> | Lite<D>[]): FindOptions =>
-      options.createFindOptions?.(domain) ?? {
-        queryName: type,
-        filterOptions:
-          [{ token: type.token(a=>a.entity).append(options.filterField), operation: Array.isArray(domain) ? "IsIn" : "EqualTo", value: domain }]
-      };
+  export const domainRegistry: Map<string, DomainRegistryEntry> = new Map<string, DomainRegistryEntry>();
 
-    filterValueFormatRules.push(
-      {
-        name: `Lite_${typeName}`,
-        applicable: (f, ffc) => isFilterCondition(f) && f.token?.filterType == "Lite" && f.token.type.name == typeName,
-        renderValue: (f, ffc) => {
-          const domain = options.getDomain(f.token!, ffc);
-          const fo = domain != null ? getFindOptions(domain) : undefined;
-          return <EntityLine ctx={ffc.ctx} type={f.token!.type} create={false}
-            onChange={() => ffc.handleValueChange(f)} label={ffc.label} mandatory={ffc.mandatory}
-            helpText={fo == null ? CollectionMessage.No0Found.niceToString(member.niceName) : undefined}
-            findOptions={fo}
-          />;
-        }
-      },
-      {
-        name: `MultiEntity_${typeName}`,
-        applicable: (f, ffc) => isFilterCondition(f) && isList(f.operation!) && f.token?.filterType == "Lite" && f.token.type.name == typeName,
-        renderValue: (f, ffc) => {
-          const domain = options.getDomain(f.token!, ffc);
-          const fo = domain != null ? getFindOptions(domain) : undefined;
-          return (
-            <FormGroup ctx={ffc.ctx} label={ffc.label}>
-              {() => <FinderRules.MultiEntity values={f.value} readOnly={(f as FilterConditionOptionParsed).frozen}
-                type={f.token!.type.name} onChange={() => ffc.handleValueChange(f)}
-                findOptions={fo}
-                helpText={fo == null ? CollectionMessage.No0Found.niceToString(member.niceName) : undefined} />}
-            </FormGroup>
-          );
-        }
-      }
-    );
+  export function registerDomainForTokens<T extends Entity, D extends Entity>(type: Type<T>, getDomainField: (a: T) => Lite<D>): void {
+    domainRegistry.set(type.typeName, { type, getDomainField });
   }
 }

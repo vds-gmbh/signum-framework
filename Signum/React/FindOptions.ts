@@ -95,7 +95,7 @@ export interface FilterGroupOption {
   pinned?: PinnedFilter;
   frozen?: boolean;
   dashboardBehaviour?: DashboardBehaviour;
-  value?: string; /*For search in multiple columns*/
+  value?: any; /*For search in multiple columns*/
 }
 
 export interface PinnedFilter {
@@ -164,7 +164,7 @@ export interface FilterGroupOptionParsed {
   filters: FilterOptionParsed[];
   pinned?: PinnedFilterParsed;
   dashboardBehaviour?: DashboardBehaviour;
-  value?: string; /*For search in multiple columns*/
+  value?: any; /*For search in multiple columns*/
 }
 
 export interface OrderOption {
@@ -400,6 +400,12 @@ export interface QueryDescriptionDTO {
 export function isList(fo: FilterOperation): boolean {
   return fo == "IsIn" ||
     fo == "IsNotIn";
+}
+
+export function isGroupList(fo: Pick<FilterGroupOption | FilterGroupOptionParsed, 'filters'>): boolean {
+  return fo.filters.some(f => f != null && isFilterCondition(f as FilterOptionParsed) &&
+    (f as FilterConditionOptionParsed).operation != null &&
+    isList((f as FilterConditionOptionParsed).operation!));
 }
 
 
