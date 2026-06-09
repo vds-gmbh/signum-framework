@@ -15,7 +15,7 @@ import { DashboardClient, PanelPartContentProps } from '../../../Signum.Dashboar
 import { UserChartPartEntity } from '../../UserChart/Signum.Chart.UserChart'
 import { DashboardFilter, DashboardFilterRow, DashboardPinnedFilters, equalsDFR } from '../../../Signum.Dashboard/View/DashboardFilterController'
 import { QueryToken, tokenStartsWith } from '@framework/QueryToken'
-import { Finder } from '../../../../Signum/ts_out/React/Finder';
+import { Finder } from '@framework/Finder';
 
 export interface UserChartPartHandler {
   chartRequest: ChartRequestModel | undefined;
