@@ -4,7 +4,7 @@ import { getQueryKey, getQueryNiceName } from '@framework/Reflection'
 import { JavascriptMessage, toLite, liteKey, translated } from '@framework/Signum.Entities'
 import { SearchControl, SearchControlHandler, SearchValue, SearchValueController } from '@framework/Search'
 import { UserQueryClient } from '../../UserQueryClient'
-import { classes, getColorContrasColorBWByHex, softCast } from '@framework/Globals';
+import { classes, getContrastingTextColorWCAG, softCast } from '@framework/Globals';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Finder } from '@framework/Finder'
 import { useAPI, useVersion } from '@framework/Hooks'

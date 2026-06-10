@@ -1441,13 +1441,37 @@ export function roundTwoDecimals(num: number): number {
 }
 
 
-export function getColorContrasColorBWByHex(hexcolor: string): "black" | "white" {
-  hexcolor = hexcolor.replace("#", "");
-  var r = parseInt(hexcolor.substr(0, 2), 16);
-  var g = parseInt(hexcolor.substr(2, 2), 16);
-  var b = parseInt(hexcolor.substr(4, 2), 16);
-  var yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-  return (yiq >= 128) ? 'black' : 'white';
+export function getContrastingTextColorWCAG(hexcolor: string): "black" | "white" {
+  const hex = hexcolor.replace('#', '');
+
+  const normalized =
+    hex.length === 3
+      ? hex
+        .split('')
+        .map((c) => c + c)
+        .join('')
+      : hex;
+
+  const r = parseInt(normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.slice(4, 6), 16);
+
+  const toLinear = (value: number) => {
+    const s = value / 255;
+    return s <= 0.03928
+      ? s / 12.92
+      : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+
+  const luminance =
+    0.2126 * toLinear(r) +
+    0.7152 * toLinear(g) +
+    0.0722 * toLinear(b);
+
+  const contrastWithBlack = (luminance + 0.05) / 0.05;
+  const contrastWithWhite = 1.05 / (luminance + 0.05);
+
+  return contrastWithBlack > contrastWithWhite ? 'black' : 'white';
 }
 
 export function isPromise(value: any): value is Promise<any> {
