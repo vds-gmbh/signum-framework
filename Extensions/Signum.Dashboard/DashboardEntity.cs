@@ -22,7 +22,10 @@ public class DashboardEntity : Entity, IUserAssetEntity, IHasEntityType, ITaskEn
         set
         {
             if (Set(ref entityType, value) && value == null)
+            {
                 EmbeddedInEntity = null;
+                ShowTitleAsBreadcrumb = false;
+            }
         }
     }
 
@@ -39,6 +42,8 @@ public class DashboardEntity : Entity, IUserAssetEntity, IHasEntityType, ITaskEn
     public string DisplayName { get; set; }
 
     public bool HideDisplayName { get; set; }
+
+    public bool ShowTitleAsBreadcrumb { get; set; }
 
     public bool CombineSimilarRows { get; set; } = true;
 

@@ -62,7 +62,7 @@ export interface DashboardEntity extends Entities.Entity, UserAssets.IUserAssetE
   autoRefreshPeriod: number | null;
   displayName: string;
   hideDisplayName: boolean;
-  showAsBreadcrumb: boolean;
+  showTitleAsBreadcrumb: boolean;
   combineSimilarRows: boolean;
   cacheQueryConfiguration: CacheQueryConfigurationEmbedded | null;
   parts: Entities.MList<PanelPartEmbedded>;
