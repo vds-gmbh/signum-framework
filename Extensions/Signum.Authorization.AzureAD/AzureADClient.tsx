@@ -135,9 +135,9 @@ export namespace AzureADClient {
       return ajaxPost({ url: `/api/createADGroup` }, request);
     }
 
-    export let forceCacheInvalidationKey: string | undefined = undefined
+    export const Options = { forceCacheInvalidationKey: undefined as string | undefined };
     export function cachedAzureUserPhotoUrl(size: number, oID: string): Promise<string | null> {
-      return ajaxGet({ url: `/api/cachedAzureUserPhoto/${size}/${oID}` + (forceCacheInvalidationKey ? ("?inv=" + forceCacheInvalidationKey) : ""), cache: "default" });
+      return ajaxGet({ url: `/api/cachedAzureUserPhoto/${size}/${oID}` + (Options.forceCacheInvalidationKey ? ("?inv=" + Options.forceCacheInvalidationKey) : ""), cache: "default" });
     }
   }
 

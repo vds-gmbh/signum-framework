@@ -9,7 +9,7 @@ import { Binding, IsByAll, tryGetTypeInfos, TypeReference, getTypeInfos } from '
 import {
   QueryDescription, FilterConditionOptionParsed,
   isList, FilterGroupOptionParsed, PinnedFilter, PinnedFilterParsed,
-  getFilterGroupUnifiedFilterType, isFilterGroup,
+  getFilterGroupUnifiedFilterType, isFilterGroup, isFilterCondition, isGroupList,
   FilterType
 } from '@framework/FindOptions'
 import { Lite, Entity, parseLite, liteKey, liteKeyLong } from "@framework/Signum.Entities";
@@ -21,7 +21,7 @@ import { useForceUpdate, useAPI } from '@framework/Hooks'
 import { PinnedQueryFilterEmbedded, QueryFilterEmbedded, QueryTokenEmbedded, UserAssetQueryMessage } from '../Signum.UserAssets.Queries'
 import { MultiValue } from '@framework/FinderRules'
 import { HeaderType } from '@framework/Lines/GroupHeader'
-import { getFilterType, SubTokensOptions } from '@framework/QueryToken'
+import { getFilterType, QueryToken, SubTokensOptions } from '@framework/QueryToken'
 import { LinkButton } from '@framework/Basics/LinkButton'
 
 interface FilterBuilderEmbeddedProps {
@@ -46,9 +46,18 @@ export function FilterBuilderEmbedded(p: FilterBuilderEmbeddedProps): React.JSX.
 
     ctx.value.clear();
 
+    function stringifyValue(v: any, token: QueryToken) : string {
+      return v == null || v == "" ? "" :
+        token.filterType == "Embedded" || token.filterType == "Lite" ? liteKeyLong(v) :
+          toStringValue(v, token.filterType)!;
+    }
 
     function pushFilter(fo: FilterOptionParsed, indent: number) {
       if (isFilterGroup(fo)) {
+        if (Array.isArray(fo.value) && fo.token) {
+          fo.value = fo.value.map(v => stringifyValue(v, fo.token!))
+            .join("|");
+        }
         ctx.value.push(newMListElement(QueryFilterEmbedded.New({
           isGroup: true,
           indentation: indent,
@@ -66,9 +75,7 @@ export function FilterBuilderEmbedded(p: FilterBuilderEmbeddedProps): React.JSX.
       } else {
 
         if (Array.isArray(fo.value) && fo.token) {
-          fo.value = fo.value.map(v => v == null || v == "" ? "" :
-            fo.token!.filterType == "Embedded" || fo.token!.filterType == "Lite" ? liteKeyLong(v) :
-              toStringValue(v, fo.token!.filterType))
+          fo.value = fo.value.map(v => stringifyValue(v, fo.token!))
             .join("|");
         }
 
@@ -118,6 +125,13 @@ export function FilterBuilderEmbedded(p: FilterBuilderEmbeddedProps): React.JSX.
 
       if (f.filters.some(a => !a.token))
         return <AutoLineOrExpression ctx={ctx} onChange={fc.handleValueChange} filterType={"String"} type={{ name: "string" }} />
+
+      if (isGroupList(f)) {
+        const firstCond = f.filters.find(sf => isFilterCondition(sf)) as FilterConditionOptionParsed | undefined;
+        const fcWithCondToken = { ...fc, filter: firstCond ?? fc.filter };
+        return <MultiLineOrExpression ctx={ctx} onChange={fc.handleValueChange}
+          onRenderItem={(ctx, onChange) => handleCreateAppropiateControl(ctx, fcWithCondToken, onChange, true)} />;
+      }
 
       if (f.filters.map(a => getFilterGroupUnifiedFilterType(a.token!.type) ?? "").distinctBy().onlyOrNull() == null && ctx.value)
         ctx.value = undefined;

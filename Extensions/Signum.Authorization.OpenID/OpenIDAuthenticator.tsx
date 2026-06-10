@@ -4,7 +4,6 @@ import * as AppContext from '@framework/AppContext'
 import { ajaxGet, ajaxPost } from '@framework/Services'
 import { QueryString } from '@framework/QueryString'
 import { AuthClient } from '../Signum.Authorization/AuthClient'
-import LoginPage, { LoginContext } from '../Signum.Authorization/Login/LoginPage'
 import { OpenIDMessage } from './Signum.Authorization.OpenID'
 
 export namespace OpenIDAuthenticator {
@@ -14,14 +13,14 @@ export namespace OpenIDAuthenticator {
     var __openIDConfig = @Json.Serialize(Starter.Configuration.Value.OpenID?.ToOpenIDConfigTS());
   */
 
-  export namespace Options {
-    export let getOpenIDConfig = function (): OpenIDConfig | undefined {
+  export const Options = {
+    getOpenIDConfig: function (): OpenIDConfig | undefined {
       return window.__openIDConfig;
     }
-  }
+  };
 
   export function registerOpenIDAuthenticator(buttonContent?: React.ReactNode): void {
-    LoginPage.customLoginButtons = ctx => {
+    AuthClient.LoginOptions.customLoginButtons = ctx => {
       const config = Options.getOpenIDConfig();
       if (!config)
         return null;
@@ -29,7 +28,7 @@ export namespace OpenIDAuthenticator {
       return <OpenIDSignIn ctx={ctx} buttonContent={buttonContent} />;
     };
 
-    LoginPage.showLoginForm = "initially_not";
+    AuthClient.LoginOptions.showLoginForm = "initially_not";
 
     AuthClient.authenticators.push(loginWithOpenIDSilent);
   }
@@ -134,7 +133,7 @@ export namespace OpenIDAuthenticator {
 }
 
 export function OpenIDSignIn({ ctx, buttonContent }: {
-  ctx: LoginContext;
+  ctx: AuthClient.LoginContext;
   buttonContent?: React.ReactNode;
 }): React.JSX.Element {
   const config = OpenIDAuthenticator.Options.getOpenIDConfig();
@@ -177,3 +176,4 @@ export interface OpenIDConfig {
   clientId: string;
   scopes: string[];
 }
+

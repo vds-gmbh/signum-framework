@@ -1,4 +1,4 @@
-import * as React from 'react'
+﻿import * as React from 'react'
 import { RouteObject } from 'react-router'
 import { ajaxPost } from '@framework/Services';
 import * as Reflection from '@framework/Reflection';
@@ -20,8 +20,8 @@ export namespace WindowsADAuthenticator {
 
     AuthClient.authenticators.push(loginWindowsAuthentication);
     AuthClient.Options.AuthHeader = "Signum_Authorization"; //Authorization is used by IIS with Negotiate prefix
-    LoginPage.showLoginForm = "initially_not";
-    LoginPage.customLoginButtons = () => <LoginWithWindowsButton />;
+    LoginPage.Options.showLoginForm = "initially_not";
+    LoginPage.Options.customLoginButtons = () => <LoginWithWindowsButton />;
   }
   
   
@@ -70,3 +70,4 @@ export namespace WindowsADAuthenticator {
     );
   }
 }
+

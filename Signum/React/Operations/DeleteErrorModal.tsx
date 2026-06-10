@@ -237,7 +237,7 @@ export namespace DeleteErrorModal {
   }
 
   export function register(): void {
-    EntityOperations.onDeleteError = async (eoc, e) => {
+    EntityOperations.Options.onDeleteError = async (eoc, e) => {
       if (!e.httpError.exceptionType?.endsWith("ForeignKeyException"))
         return false;
 

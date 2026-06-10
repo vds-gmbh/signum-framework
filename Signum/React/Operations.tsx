@@ -119,7 +119,7 @@ export namespace Operations {
   }
 
   export function notifySuccess(message?: string, timeout?: number): void {
-    Notify.singleton && Notify.singleton.notifyTimeout({ text: message ?? JavascriptMessage.executed.niceToString(), type: "success", priority: 20 }, timeout);
+    Notify.getSingleton()?.notifyTimeout({ text: message ?? JavascriptMessage.executed.niceToString(), type: "success", priority: 20 }, timeout);
   }
 
   /**

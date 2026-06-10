@@ -371,7 +371,9 @@ export namespace Navigator {
     }
   }
 
-  export let viewDispatcher: ViewDispatcher = new AutoViewDispatcher();
+  let viewDispatcher: ViewDispatcher = new AutoViewDispatcher();
+
+  export function getViewDispatcher(): ViewDispatcher { return viewDispatcher; }
 
   export function getViewPromise<T extends ModifiableEntity>(entity: T, viewName?: string): ViewPromise<T> {
     return viewDispatcher.getViewPromise(entity, viewName);
@@ -1217,7 +1219,7 @@ export class ViewPromise<T extends ModifiableEntity> {
 
   applyViewOverrides(typeName: string, viewName?: string): ViewPromise<T> {
     this.promise = this.promise.then(func =>
-      Navigator.viewDispatcher.getViewOverrides(typeName, viewName).then(vos => {
+      Navigator.getViewDispatcher().getViewOverrides(typeName, viewName).then(vos => {
 
         if (vos.length == 0)
           return func;

@@ -2,6 +2,7 @@
   "compilerOptions": {
     "target": "esnext",
     "isolatedDeclarations": true,
+    "isolatedModules": true,
     "sourceMap": true,
     "module": "esnext",
     "moduleResolution": "bundler",

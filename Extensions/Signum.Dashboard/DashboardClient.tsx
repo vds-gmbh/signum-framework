@@ -302,7 +302,7 @@ export namespace DashboardClient {
 
   export namespace Options {
 
-    export let customTitle: (dashboard: DashboardEntity) => React.ReactNode = d => <DashboardTitle dashboard={d} />;
+    export const customTitle: (dashboard: DashboardEntity) => React.ReactNode = d => <DashboardTitle dashboard={d} />;
 
     export const customPartRenderers: Record<string /*typeName*/, Record<string /*customPartName*/, CustomPartRenderer>> = {};
 
