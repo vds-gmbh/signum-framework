@@ -357,6 +357,12 @@ public enum DashboardMessage
     InteractiveDashboard,
     SelectIcon,
     Close,
+
+    [Description("Incompatible Entity Type")]
+    IncompatibleEntityType,
+
+    [Description("Not filtering by {0}")]
+    NotFilteringBy0,
 }
 
 public enum DashboardVariableMessage
