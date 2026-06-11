@@ -25,7 +25,7 @@ import { similarToken, findFilterValue } from "./Search";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { TextHighlighter } from "./Components/Typeahead";
 import { Finder } from "./Finder";
-import { OverlayTrigger, Popover } from "react-bootstrap";
+import { OverlayTrigger, Popover, Tooltip } from "react-bootstrap";
 import { TypeEntity } from "./Signum.Basics";
 import { useForceUpdate } from "./Hooks";
 import { TextAreaLine } from "./Lines/TextAreaLine";
@@ -601,6 +601,12 @@ function findParentTokensInRegistry(
   return result;
 }
 
+function getAllSubConditions(fg: FilterGroupOptionParsed): FilterConditionOptionParsed[] {
+  return fg.filters.flatMap(sf =>
+    isFilterCondition(sf) ? [sf] : getAllSubConditions(sf as FilterGroupOptionParsed)
+  );
+}
+
 function getDomainFindOptions(filterToken: QueryToken, ffc: Finder.FilterFormatterContext): FindOptions | undefined {
   const entry = Finder.domainRegistry.get(filterToken.type.name)!;
   const parents = findParentTokensInRegistry(filterToken, ffc.queryDescription, Finder.domainRegistry);
@@ -795,11 +801,12 @@ export function initFilterValueFormatRules(): Finder.FilterValueFormatter[] {
     },
     {
       name: "FilterGroup_TextArea",
-      applicable: (f, ffc) => isFilterGroup(f) && f.filters.some(sf => isFilterCondition(sf) && isFullTextSearch(sf.operation)),
+      applicable: (f, ffc) => isFilterGroup(f) && getAllSubConditions(f as FilterGroupOptionParsed).some(sf => isFullTextSearch(sf.operation)),
       renderValue: (f, ffc) => {
         var fg = f as FilterGroupOptionParsed;
-        const isComplex = fg.filters.some(sf => isFilterCondition(sf) && isComplexFullTextSearch(sf.operation));
-        var filterOperation = fg.filters.map(sf => isFilterCondition(sf) && isFullTextSearch(sf.operation) ? sf.operation : null).notNull().distinctBy(a => a).onlyOrNull();
+        const subConds = getAllSubConditions(fg);
+        const isComplex = subConds.some(sf => isComplexFullTextSearch(sf.operation));
+        var filterOperation = subConds.map(sf => isFullTextSearch(sf.operation) ? sf.operation : null).notNull().distinctBy(a => a).onlyOrNull();
         return <FilterTextArea ctx={ffc.ctx}
           filterOperation={filterOperation}
           onChange={(() => ffc.handleValueChange(f, isComplex))}
@@ -809,17 +816,23 @@ export function initFilterValueFormatRules(): Finder.FilterValueFormatter[] {
     {
       name: "FilterGroup_MultiValue",
       applicable: (f, ffc) => isFilterGroup(f) &&
-        f.filters.every(sf => isFilterCondition(sf) && sf.token?.filterType != "Lite") &&
-        f.filters.some(sf => isFilterCondition(sf) && isList(sf.operation!)),
+        getAllSubConditions(f as FilterGroupOptionParsed).every(sf => sf.token?.filterType != "Lite") &&
+        getAllSubConditions(f as FilterGroupOptionParsed).some(sf => isList(sf.operation!)),
       renderValue: (f, ffc) => {
         const fg = f as FilterGroupOptionParsed;
-        if (!fg.pinned?.splitValue && fg.filters.some(sf => isFilterCondition(sf) && !isList((sf as FilterConditionOptionParsed).operation!)))
-          throw new Error(`FilterGroup_MultiValue: non-collection operations found in FilterGroup with splitValue=false`);
+        const subConds = getAllSubConditions(fg);
+        if (!fg.pinned?.splitValue && subConds.some(sf => !isList(sf.operation!))) {
+          return (
+            <OverlayTrigger overlay={<Tooltip>{SearchMessage.FilterGroupInvalidMixedOperations.niceToString()}</Tooltip>}>
+              <span className="text-danger">{SearchMessage.Error.niceToString() }<FontAwesomeIcon icon="circle-info" /></span>
+            </OverlayTrigger>
+          );
+        }
 
         if (!ffc.ctx.value)
           ffc.ctx.value = [];
 
-        const firstCond = fg.filters.find(sf => isFilterCondition(sf)) as FilterConditionOptionParsed;
+        const firstCond = subConds.find(sf => sf != null) as FilterConditionOptionParsed;
         const pseudoFilter = { ...firstCond, operation: "EqualTo" } as FilterConditionOptionParsed;
         const rule = Finder.filterValueFormatRules.filter(r => r.applicable(pseudoFilter, ffc)).last();
 
@@ -835,17 +848,22 @@ export function initFilterValueFormatRules(): Finder.FilterValueFormatter[] {
     {
       name: "FilterGroup_MultiEntity",
       applicable: (f, ffc) => isFilterGroup(f) &&
-        f.filters.every(sf => isFilterCondition(sf) && sf.token?.filterType == "Lite") &&
-        f.filters.some(sf => isFilterCondition(sf) && isList(sf.operation!)),
+        getAllSubConditions(f as FilterGroupOptionParsed).every(sf => sf.token?.filterType == "Lite") &&
+        getAllSubConditions(f as FilterGroupOptionParsed).some(sf => isList(sf.operation!)),
       renderValue: (f, ffc) => {
         const fg = f as FilterGroupOptionParsed;
-        if (!fg.pinned?.splitValue && fg.filters.some(sf => isFilterCondition(sf) && !isList((sf as FilterConditionOptionParsed).operation!)))
-          return <span className="text-danger">non-collection operations found in FilterGroup with splitValue=false</span>;
+        const subConds = getAllSubConditions(fg);
+        if (!fg.pinned?.splitValue && subConds.some(sf => !isList(sf.operation!)))
+          return (
+            <OverlayTrigger overlay={<Tooltip>{SearchMessage.FilterGroupInvalidMixedOperations.niceToString()}</Tooltip>}>
+              <span className="text-danger">{SearchMessage.Error.niceToString()} <FontAwesomeIcon icon="circle-info" /></span>
+            </OverlayTrigger>
+          );
 
         if (!ffc.ctx.value)
           ffc.ctx.value = [];
 
-        const firstLiteCond = fg.filters.find(sf => isFilterCondition(sf) && sf.token?.filterType == "Lite") as FilterConditionOptionParsed;
+        const firstLiteCond = subConds.find(sf => sf.token?.filterType == "Lite") as FilterConditionOptionParsed;
         const typeName = firstLiteCond.token!.type.name;
         const entry = Finder.domainRegistry.get(typeName);
         const fo = entry ? getDomainFindOptions(firstLiteCond.token!, ffc) : undefined;

@@ -5,7 +5,7 @@ import { getQueryKey } from '@framework/Reflection'
 import { JavascriptMessage, toLite, liteKey, translated } from '@framework/Signum.Entities'
 import { SearchValue, SearchValueController } from '@framework/Search'
 import { UserQueryClient } from '../../UserQueryClient'
-import { classes, getColorContrasColorBWByHex, softCast } from '@framework/Globals';
+import { classes, getContrastingTextColorWCAG, softCast } from '@framework/Globals';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Finder } from '@framework/Finder'
 import { useAPI, useForceUpdate, useVersion } from '@framework/Hooks'
@@ -166,7 +166,7 @@ export default function BigValuePart(p: PanelPartContentProps<BigValuePartEntity
     <div className={classes("card", "border-tertiary shadow-sm mb-3 w-100", "o-hidden")}
       style={{
         backgroundColor: customColor ?? undefined,
-        color: Boolean(customColor) ? getColorContrasColorBWByHex(customColor!) : "var(--bs-body-color)"
+        color: Boolean(customColor) ? getContrastingTextColorWCAG(customColor!) : "var(--bs-body-color)"
       }}>
       {clickable ? (
         <button
@@ -175,7 +175,7 @@ export default function BigValuePart(p: PanelPartContentProps<BigValuePartEntity
           className="card-body border-0 bg-transparent text-start w-100"
           style={{
             backgroundColor: customColor ?? undefined,
-            color: p.partEmbedded.titleColor ?? (customColor ? getColorContrasColorBWByHex(customColor!) : "var(--bs-body-color)"),
+            color: p.partEmbedded.titleColor ?? (customColor ? getContrastingTextColorWCAG(customColor!) : "var(--bs-body-color)"),
           }}>
           {renderCardContent()}
         </button>
@@ -184,7 +184,7 @@ export default function BigValuePart(p: PanelPartContentProps<BigValuePartEntity
           className="card-body"
           style={{
             backgroundColor: customColor ?? undefined,
-            color: p.partEmbedded.titleColor ?? (customColor ? getColorContrasColorBWByHex(customColor!) : "var(--bs-body-color)"),
+            color: p.partEmbedded.titleColor ?? (customColor ? getContrastingTextColorWCAG(customColor!) : "var(--bs-body-color)"),
           }}>
           {renderCardContent()}
         </div>

@@ -1554,7 +1554,6 @@ export namespace Finder {
         fo.filters.forEach(f => parseFilterValue(f));
 
         if (isGroupList(fo)) {
-          debugger;
           const firstCond = fo.filters.first(f => isFilterCondition(f) && f.token != null);
           if (!Array.isArray(fo.value))
             fo.value = [fo.value].notNull();
@@ -2530,7 +2529,7 @@ export namespace Finder {
   export const filterValueFormatRules: FilterValueFormatter[] = FinderRules.initFilterValueFormatRules();
 
   export function renderFilterValue(f: FilterOptionParsed, ffc: FilterFormatterContext): React.ReactElement<any, string | React.JSXElementConstructor<any>> {
-    var rule = filterValueFormatRules.filter(r => r.applicable(f, ffc)).last();
+    var rule = filterValueFormatRules.last(r => r.applicable(f, ffc));
     return rule.renderValue(f, ffc);
   }
 
