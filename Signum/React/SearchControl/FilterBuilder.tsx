@@ -536,7 +536,7 @@ export function FilterGroupComponent(p: FilterGroupComponentsProps): React.React
 
         </td>
         <td>
-          {fg.pinned &&
+          {fg.pinned && !isCheckBox(fg.pinned.active) &&
             <div>
               {renderValue()}
             </div>

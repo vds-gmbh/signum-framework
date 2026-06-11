@@ -785,6 +785,8 @@ export namespace SearchMessage {
   export const _0ResultTable: MessageKey = new MessageKey("SearchMessage", "_0ResultTable");
   export const SelectRow0_: MessageKey = new MessageKey("SearchMessage", "SelectRow0_");
   export const Enter: MessageKey = new MessageKey("SearchMessage", "Enter");
+  export const Error: MessageKey = new MessageKey("SearchMessage", "Error");
+  export const FilterGroupInvalidMixedOperations: MessageKey = new MessageKey("SearchMessage", "FilterGroupInvalidMixedOperations");
 }
 
 export namespace SelectorMessage {
