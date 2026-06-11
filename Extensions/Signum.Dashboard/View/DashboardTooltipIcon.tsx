@@ -2,7 +2,7 @@ import * as React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Tooltip } from 'react-bootstrap'
 import { Overlay } from 'react-bootstrap'
-import { HtmlViewer } from '../Admin/TextPart'
+import { HtmlViewer } from '../Admin/HtmlViewer'
 
 export interface DashboardTooltipIconProps {
   tooltipHtml: string;

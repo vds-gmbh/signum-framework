@@ -7,6 +7,7 @@ public static class TokenMigrationRunner
 {
     public static void TokenMigrations(bool autoRun)
     {
+        Schema.Current.Initialize();
         Console.WriteLine();
         SafeConsole.WriteLineColor(ConsoleColor.Cyan, "..:: Token Migrations ::..");
 
@@ -24,9 +25,6 @@ public static class TokenMigrationRunner
                     return;
 
                 ApplyPending(pending);
-
-                if (autoRun)
-                    return;
             }
             else
             {
@@ -152,8 +150,9 @@ public static class TokenMigrationRunner
         // inside FixToken / FixValue / AskRename takes care of any earlier files whose outer keys
         // pre-date later Types renames.
         var allCommitted = TokenMigrationLogic.ReadMigrationsDirectory(silent: true);
+        SetExecuted(allCommitted);
         var loaded = allCommitted
-            .Where(p => p.FileName != null)
+            .Where(p => p.FileName != null && !p.IsExecuted)
             .Select(p => TokenMigrationFile.Load(p.FileName!))
             .ToArray();
 

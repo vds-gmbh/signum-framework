@@ -427,6 +427,9 @@ public enum SearchMessage
     [Description("Select row {0}")]
     SelectRow0_,
     Enter,
+    Error,
+    [Description("This filter group contains some operations that require a list ('is in' / 'is not in') and some than not. Enable 'Split' or use operation consitently.")]
+    FilterGroupInvalidMixedOperations,
 }
 
 public enum SearchHelpMessage
