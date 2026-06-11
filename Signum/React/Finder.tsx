@@ -10,7 +10,7 @@ import {
   QueryDescription, QueryValueRequest, QueryRequest, QueryEntitiesRequest, FindOptions,
   FindOptionsParsed, FilterOption, FilterOptionParsed, OrderOptionParsed,
   ColumnOption, ColumnOptionParsed, Pagination,
-  ResultTable, ResultRow, OrderOption, isList, ColumnOptionsMode, FilterRequest, ModalFindOptions, OrderRequest,
+  ResultTable, ResultRow, OrderOption, isList, isPair, ColumnOptionsMode, FilterRequest, ModalFindOptions, OrderRequest,
   FilterGroupOptionParsed, FilterConditionOptionParsed, FilterGroupOption,
   FilterConditionOption, FilterGroupRequest, FilterConditionRequest, PinnedFilter, SystemTime,
   toPinnedFilterParsed, isActive, ModalFindOptionsMany, canSplitValue, getFilterOperations, isFilterGroup, isFilterCondition, isGroupList,
@@ -1168,7 +1168,7 @@ export namespace Finder {
         return ({
           token: fop.token.fullKey,
           operation: effectiveOp,
-          value: value.notNull(),
+          value: isList(fop.operation) ? value.notNull() : value,
         } as FilterConditionRequest);
       }
 
@@ -1565,6 +1565,12 @@ export namespace Finder {
             fo.value = [fo.value].notNull();
 
           fo.value = (fo.value as any[]).map(v => parseValue(fo.token!, v, needsModel));
+        }
+        else if (isPair(fo.operation!)) {
+          if (!Array.isArray(fo.value))
+            fo.value = [fo.value ?? null, null];
+
+          fo.value = (fo.value as [any, any]).map(v => v == null ? null : parseValue(fo.token!, v, needsModel));
         }
         else {
           if (Array.isArray(fo.value))
@@ -2283,8 +2289,8 @@ export namespace Finder {
               token: parts[0],
               operation: operation,
               value: ignoreValues ? null :
-                !isList(operation) ? unscapeTildes(parts[2]) :
-                  parts.slice(2).map(a => unscapeTildes(a)).notNull(),
+                !isList(operation) && !isPair(operation) ? unscapeTildes(parts[2]) :
+                  parts.slice(2).map(a => unscapeTildes(a) ?? null),
               pinned: pinned,
             }) as FilterConditionOption
           } else {
