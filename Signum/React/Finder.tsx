@@ -1244,6 +1244,7 @@ export namespace Finder {
       newFO.pagination = count == undefined ? { mode: "All" } : { mode: "Firsts", elementsPerPage: count };
     }
 
+
     return newFO;
   }
 
@@ -1909,12 +1910,12 @@ export namespace Finder {
     });
   }
 
-  export function getResultTable(fo: FindOptions, signal?: AbortSignal): Promise<ResultTable> {
+  export function getResultTable(fo: FindOptions, signal?: AbortSignal, defaultIncludeDefaultFilters: boolean = true): Promise<ResultTable> {
 
     fo = defaultNoColumnsAllRows(fo, undefined);
 
     return getQueryDescription(fo.queryName)
-      .then(qd => parseFindOptions(fo!, qd, false))
+      .then(qd => parseFindOptions(fo!, qd, defaultIncludeDefaultFilters))
       .then(fop => API.executeQuery(getQueryRequest(fop), signal));
   }
 
