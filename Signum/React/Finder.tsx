@@ -2289,8 +2289,9 @@ export namespace Finder {
               token: parts[0],
               operation: operation,
               value: ignoreValues ? null :
-                !isList(operation) && !isPair(operation) ? unscapeTildes(parts[2]) :
-                  parts.slice(2).map(a => unscapeTildes(a) ?? null),
+                isPair(operation) ? parts.slice(2).map(a => unscapeTildes(a) ?? null) :
+                  isList(operation) ? parts.slice(2).map(a => unscapeTildes(a)).notNull() :
+                    unscapeTildes(parts[2]),
               pinned: pinned,
             }) as FilterConditionOption
           } else {
