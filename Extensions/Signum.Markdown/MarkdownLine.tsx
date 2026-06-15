@@ -1,10 +1,10 @@
 import * as React from 'react'
-import { ErrorBoundary } from '../Components';
+import { ErrorBoundary } from '@framework/Components';
 import Markdown, { Options } from 'react-markdown';
-import { TextAreaLine, TextAreaLineProps } from './TextAreaLine';
+import { TextAreaLine, TextAreaLineProps } from '@framework/Lines/TextAreaLine';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { LinkButton } from '../Basics/LinkButton';
-import { MarkdownMessage } from '../Signum.Entities';
+import { LinkButton } from '@framework/Basics/LinkButton';
+import { MarkdownMessage } from '@framework/Signum.Entities';
 
 export interface MarkdownLineProps extends TextAreaLineProps {
   markdownOption?: Options;
