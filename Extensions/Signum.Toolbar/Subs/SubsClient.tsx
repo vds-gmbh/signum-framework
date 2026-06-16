@@ -33,17 +33,19 @@ export namespace SubsClient {
         const typeName = getTypeInfo(subType).niceName;
         const parentName = getToString(parent);
 
-        if (typeAllowedInDomain(subType, parent)) {
-          await MessageModal.showError(SubPageMessage.No0FoundIn1.niceToString(typeName, parentName));
-          return undefined;
-        }
-
         if (!typeAllowedInDomain(subType, parent, true)) {
+
+          if (typeAllowedInDomain(subType, parent)) {
+            await MessageModal.showError(SubPageMessage.No0FoundIn1.niceToString(typeName, parentName));
+            return undefined;
+          }
+
           await MessageModal.showError(SubPageMessage.NotAllowedToCreate0In1.niceToString(typeName, parentName));
           return undefined;
         }
 
-        return Constructor.constructPack(subType, { [member.name]: parent } as Partial<S>);
+        debugger;
+        return Constructor.constructPack(subType, { [member.name.firstLower()]: parent } as Partial<S>);
       });
     });
   }
