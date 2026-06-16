@@ -300,6 +300,7 @@ public enum LayoutMessage
     SelectA0_G,
 }
 
+[AllowUnauthenticated]
 public enum SubPageMessage
 {
     [Description("No {0} found in {1}")]
