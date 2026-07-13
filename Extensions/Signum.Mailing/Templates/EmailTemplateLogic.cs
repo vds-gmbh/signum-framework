@@ -1,12 +1,13 @@
-using System.Globalization;
+using Signum.Authorization;
 using Signum.DynamicQuery.Tokens;
 using Signum.Engine.Sync;
 using Signum.Templating;
-using Signum.UserAssets.QueryTokens;
 using Signum.UserAssets.Queries;
+using Signum.UserAssets.QueryTokens;
 using Signum.UserAssets.TokenMigrations;
-using Signum.Authorization;
+using Signum.UserQueries;
 using System.Collections.Frozen;
+using System.Globalization;
 
 namespace Signum.Mailing.Templates;
 
@@ -429,7 +430,8 @@ public static class EmailTemplateLogic
     {
         using (var tr = Transaction.ForceNew())
         {
-            et.Save();
+            using (OperationLogic.AllowSave<EmailTemplateEntity>())
+                et.Save();
             tr.Commit();
         }
     }
@@ -548,7 +550,7 @@ public static class EmailTemplateLogic
                     {
                     retry:
                         string? val = item.ValueString;
-                        switch (QueryTokenSynchronizer.FixValue(ctx, et.Query!.Key, item.Token!.TokenString, item.Token!.Token.Type, ref val, allowRemoveToken: true, isList: item.Operation!.Value.IsList(), fixInstead: true, modelType))
+                        switch (QueryTokenSynchronizer.FixValue(ctx, et.Query!.Key, item.Token!.TokenString, item.Token!.Token.Type, ref val, allowRemoveToken: true, isListOrPair: item.Operation!.Value.IsListOrPair(), fixInstead: true, modelType))
                         {
                             case FixTokenResult.Nothing: break;
                             case FixTokenResult.RemoveToken: et.Filters.Remove(item); entityTouched = true; changes.Add("filter value removed"); break;

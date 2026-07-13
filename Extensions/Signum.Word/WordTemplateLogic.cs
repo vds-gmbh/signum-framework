@@ -1,18 +1,19 @@
-using DocumentFormat.OpenXml.Packaging;
-using System.IO;
-using Signum.Utilities.DataStructures;
 using DocumentFormat.OpenXml;
-using W = DocumentFormat.OpenXml.Wordprocessing;
-using System.Data;
-using System.Globalization;
+using DocumentFormat.OpenXml.Packaging;
 using Signum.Engine.Sync;
-using Signum.UserAssets.QueryTokens;
-using Signum.Templating;
 using Signum.Files;
+using Signum.Mailing.Templates;
+using Signum.Templating;
 using Signum.UserAssets;
 using Signum.UserAssets.Queries;
+using Signum.UserAssets.QueryTokens;
 using Signum.UserAssets.TokenMigrations;
+using Signum.Utilities.DataStructures;
 using System.Collections.Frozen;
+using System.Data;
+using System.Globalization;
+using System.IO;
+using W = DocumentFormat.OpenXml.Wordprocessing;
 
 namespace Signum.Word;
 
@@ -618,7 +619,7 @@ public static class WordTemplateLogic
                     {
                     retry:
                         string? val = item.ValueString;
-                        switch (QueryTokenSynchronizer.FixValue(ctx, wt.Query!.Key, item.Token!.TokenString, item.Token!.Token.Type, ref val, allowRemoveToken: true, isList: item.Operation!.Value.IsList(), fixInstead: true, modelType))
+                        switch (QueryTokenSynchronizer.FixValue(ctx, wt.Query!.Key, item.Token!.TokenString, item.Token!.Token.Type, ref val, allowRemoveToken: true, isListOrPair: item.Operation!.Value.IsListOrPair(), fixInstead: true, modelType))
                         {
                             case FixTokenResult.Nothing: break;
                             case FixTokenResult.RemoveToken: wt.Filters.Remove(item); entityTouched = true; changes.Add("filter value removed"); break;
@@ -775,7 +776,8 @@ public static class WordTemplateLogic
         using (var tr = Transaction.ForceNew())
         {
             if (fileTouched) file.Save();
-            if (entityTouched) wt.Save();
+            using (OperationLogic.AllowSave<WordTemplateEntity>())
+                if (entityTouched) wt.Save();
             tr.Commit();
         }
     }

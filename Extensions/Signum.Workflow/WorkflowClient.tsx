@@ -1,4 +1,4 @@
-import * as React from 'react'
+﻿import * as React from 'react'
 import { RouteObject } from 'react-router'
 import { Duration, DurationUnit } from 'luxon';
 import { ifError, Dic } from '@framework/Globals';
@@ -536,7 +536,7 @@ export namespace WorkflowClient {
     Constructor.registerConstructor(WorkflowScriptEntity, props => WorkflowScriptEntity.New({ eval: WorkflowScriptEval.New(), ...props }));
     Constructor.registerConstructor(WorkflowTimerEmbedded, props => Constructor.construct(TimeSpanEmbedded).then(ts => ts && WorkflowTimerEmbedded.New({ duration: ts, ...props })));
 
-    TypeHelpButtonBarComponent.getTypeHelpButtons.push(props => [({
+    TypeHelpButtonBarComponent.Options.getTypeHelpButtons.push(props => [({
       element: <WorkflowHelpComponent typeName={props.typeName} mode={props.mode} />,
       order: 0,
     })]);
@@ -855,7 +855,7 @@ export namespace WorkflowClient {
 
     const wa = ca.workflowActivity as WorkflowActivityEntity;
 
-    var viewPromise = Navigator.viewDispatcher.getViewPromise(ca.case.mainEntity, wa.viewName ?? undefined);
+    var viewPromise = Navigator.getViewDispatcher().getViewPromise(ca.case.mainEntity, wa.viewName ?? undefined);
 
     if (wa.viewNameProps.length) {
       var props = wa.viewNameProps.toObject(a => a.element.name, a => !a.element.expression ? undefined : eval(a.element.expression));
@@ -1118,3 +1118,4 @@ export namespace WorkflowClient {
     return null;
   }
 }
+

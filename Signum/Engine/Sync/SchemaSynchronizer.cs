@@ -1313,18 +1313,20 @@ EXEC(@{1})".FormatWith(databaseName.Name, variableName));
     }
 
 
-    public static SqlPreCommand? SyncPostgresDefaultTextLanguage(Replacements replacements)
+    public static SqlPreCommand? SyncPostgresDefaultTextLanguage(Replacements? replacements = null)
     {
         if (!Schema.Current.Settings.IsPostgres)
             return null;
 
         var culture = (string)Executor.ExecuteScalar("SHOW default_text_search_config;")!;
 
-        if(culture.StartsWith("pg_catalog."))
+        if (culture.StartsWith("pg_catalog."))
             culture = culture.After("pg_catalog.");
 
         if (culture != FullTextTableIndex.PostgresOptions.DefaultLanguage())
+        {
             return new SqlPreCommandSimple($"ALTER DATABASE \"{ObjectName.CurrentOptions.DatabaseNameReplacement ?? Connector.Current.DatabaseName()}\" SET default_text_search_config = '{FullTextTableIndex.PostgresOptions.DefaultLanguage()}';");
+        }
 
         return null;
     }

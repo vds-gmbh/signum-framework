@@ -1,4 +1,4 @@
-import * as React from "react";
+﻿import * as React from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPaperPlane, faStop } from "@fortawesome/free-solid-svg-icons";
 import "./ChatbotModal.css";
@@ -392,7 +392,7 @@ export default function ChatModal(p: { onClose: () => void }): React.ReactElemen
       </div>
       <h4 className="px-3 pt-2">
         <React.Suspense fallback={null}>
-          {currentSessionRef.current && ChatbotClient.renderMarkdown(getToString(currentSessionRef.current))}
+          {currentSessionRef.current && ChatbotClient.Options.renderMarkdown(getToString(currentSessionRef.current))}
         </React.Suspense>
       </h4>
       {/* Chat History */}
@@ -506,4 +506,5 @@ async function* getWordsOrCommands(reader: ReadableStreamDefaultReader<Uint8Arra
     }
   }
 }
+
 
