@@ -197,7 +197,7 @@ public static class HtmlToWordConverter
                             new NumberingFormat() { Val = htmlNode.Name == "ul" ? NumberFormatValues.Bullet : NumberFormatValues.Decimal },
                             new LevelText() { Val = htmlNode.Name == "ul" ? "•" : $"%{level + 1}." },
                             new ParagraphProperties(
-                                new Indentation() { Left = (360 * (level + 1)).ToString(), Hanging = "180" }
+                                new Indentation() { Left = (180 * (level + 1)).ToString(), Hanging = "180" }
                             )
                         )
                         { LevelIndex = level });
