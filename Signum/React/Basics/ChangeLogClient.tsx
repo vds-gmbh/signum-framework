@@ -37,34 +37,36 @@ export namespace ChangeLogClient {
   
     const regex = /Update (?<mod>\w+)( to (?<date>\d{4}.\d{2}.\d{2}))?/;
   
-    mainLogs.orderBy(log => log.deployDate).forEach((log, i) => {
-  
+    var sortedMainLogs = mainLogs.orderBy(log => log.deployDate);
+
+    sortedMainLogs.forEach((log, i) => {
+
       result.push(log);
-  
+
       log.changeLog.extract(cl => {
-  
+
         var a = regex.exec(cl);
-  
+
         if (a) {
           var mod = a.groups!.mod;
           var date = a.groups!.date ?? log.deployDate;
-  
+
           var newModueles = modLogs.extract(l => (l.module == mod || l.module.startsWith(mod + ".")) && l.implDate < date);
           newModueles.forEach(a => a.deployDate = date);
-  
+
           result.push(...newModueles);
-  
-          return true; 
+
+          return true;
         }
-  
+
         return false;
       });
-  
-      if (i == (mainLogs.length - 1)) {
-        modLogs.forEach(a => a.deployDate = log.deployDate);
-        result.push(...modLogs);
-        modLogs.clear();
-      }
+
+      // Assign remaining module logs to the first main release that comes after their implDate
+      var nextDeployDate = i < sortedMainLogs.length - 1 ? sortedMainLogs[i + 1].deployDate : null;
+      var matchedModLogs = modLogs.extract(l => nextDeployDate == null || l.implDate < nextDeployDate);
+      matchedModLogs.forEach(a => a.deployDate = log.deployDate);
+      result.push(...matchedModLogs);
     });
   
     return result;
