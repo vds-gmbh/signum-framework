@@ -10,7 +10,7 @@ import * as AppContext from '@framework/AppContext'
 import { Finder } from '@framework/Finder'
 import { Entity, Lite, liteKey, toLite, EntityPack, getToString, SearchMessage, translated } from '@framework/Signum.Entities'
 import { QuickLinkClient, QuickLinkAction } from '@framework/QuickLinkClient'
-import { getTypeInfos, getTypeName, PseudoType, Type, TypeInfo } from '@framework/Reflection'
+import { tryGetTypeInfos, getTypeName, PseudoType, Type, TypeInfo } from '@framework/Reflection'
 import { onEmbeddedWidgets, EmbeddedWidget } from '@framework/Frames/Widgets'
 import { AuthClient } from '../Signum.Authorization/AuthClient'
 import {
@@ -91,14 +91,14 @@ export namespace DashboardClient {
       var tm = Navigator.getSettings(ToolbarMenuEntity);
       if (tm == null)
         throw new Error("Call ToolbarClient before DasboardClient");
-      tm.overrideView(rm => rm.insertAfterElement(SearchValueLine, scl => (scl.props.findOptions as FindOptions)?.queryName == ToolbarSwitcherEntity, scl => [
-        <SearchValueLine ctx={scl.props.ctx} findOptions={{
-          queryName: DashboardEntity,
-          filterOptions: [
-            { token: DashboardEntity.token(a => a.entity.parts).any().append(a => a.content).cast(ToolbarMenuPartEntity).append(a => a.toolbarMenu), value: rm.ctx.value },
-          ]
-        }} />
-      ]));
+      if (DashboardEntity.memberImplements(a => a.parts[0].element.content, ToolbarMenuPartEntity))
+        tm.overrideView(rm => rm.insertAfterElement(SearchValueLine, scl => (scl.props.findOptions as FindOptions)?.queryName == ToolbarSwitcherEntity, scl => [
+          <SearchValueLine ctx={scl.props.ctx} findOptions={DashboardEntity.findOptions(token => ({
+            filterOptions: [
+              token(a => a.entity.parts).any().append(a => a.content).cast(ToolbarMenuPartEntity).append(a => a.toolbarMenu).filter("EqualTo", rm.ctx.value),
+            ]
+          }))} />
+        ]));
 
       registerRenderer(ToolbarMenuPartEntity, {
         component: () => import('./View/ToolbarMenuPart').then(a => a.default),
@@ -334,6 +334,20 @@ export namespace DashboardClient {
         withPanel: opts?.withPanel ?? true,
       };
     }
+
+    /**
+     * Per-EntityType provider of the parts to leave out of an entity's dashboard. Returns the set of Guid row ids
+     * of `DashboardEntity.parts` to drop (the row id is what identifies a part, see `partRowId` in `DashboardView`),
+     * or `null` to render the dashboard as designed.
+     * `DashboardView` closes the gaps the dropped parts leave behind.
+     */
+    export type HiddenPartsProvider = (dashboard: DashboardEntity, entity: Lite<Entity>) => Promise<Set<string> | null> | Set<string> | null;
+
+    export const hiddenPartsProviders: { [entityType: string]: HiddenPartsProvider } = {};
+
+    export function registerHiddenPartsProvider(entityType: string, provider: HiddenPartsProvider): void {
+      hiddenPartsProviders[entityType] = provider;
+    }
   }
 }
 
@@ -358,14 +372,22 @@ declare module '@framework/Signum.Entities' {
   }
 }
 
-export function CreateNewButton(p: { queryKey: string, onClick: (types: TypeInfo[], qd: QueryDescription) => void }): React.JSX.Element | null {
+export function CreateNewButton(p: { queryKey: string, getFindOptions?: () => Promise<FindOptions>, onClick: (types: TypeInfo[], qd: QueryDescription) => void }): React.JSX.Element | null {
 
-  const qd = useAPI(() => Finder.getQueryDescription(p.queryKey), [p.queryKey]);
+  const data = useAPI(async () => {
+    const qd = await Finder.getQueryDescription(p.queryKey);
+    const fo = p.getFindOptions ? await p.getFindOptions() : undefined;
+    const fop = fo ? await Finder.parseFindOptions(fo, qd, false) : undefined;
+    return { qd, fop };
+  }, [p.queryKey]);
 
-  if (qd == null)
+  if (data == null)
     return null;
 
-  const tis = getTypeInfos(qd.columns["Entity"].type).filter(ti => Navigator.isCreable(ti, { isSearch: true }));
+  const { qd, fop } = data;
+
+  //Pass fo so domain-aware isCreableEvent (e.g. typeAllowedInDomain) can check create access for the filtered domain, like SearchControl does
+  const tis = tryGetTypeInfos(qd.columns["Entity"].type).notNull().filter(ti => Navigator.isCreable(ti, { isSearch: true, fo: fop }));
 
   if (tis.length == 0)
     return null;

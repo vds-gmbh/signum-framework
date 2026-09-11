@@ -126,12 +126,20 @@ public static class EmailModelLogic
 {
     class EmailModelInfo
     {
-        public object QueryName;
+        readonly Type model;
+        readonly object? explicitQueryName;
+
+        //Null for EmailModels over a ModelEntity (or any type without a registered query),
+        //the default EmailTemplate is then created with Query = null and renders only from the model.
+        //Resolved lazily, so the EmailModel can be registered before the query of the entity.
+        public object? QueryName => explicitQueryName ?? GetDefaultQueryName(model);
+
         public Func<EmailTemplateEntity>? DefaultTemplateConstructor;
 
-        public EmailModelInfo(object queryName)
+        public EmailModelInfo(Type model, object? queryName)
         {
-            QueryName = queryName;
+            this.model = model;
+            this.explicitQueryName = queryName;
         }
     }
 
@@ -152,7 +160,7 @@ public static class EmailModelLogic
             {
                 Entity = se,
                 se.Id,
-                se.FullClassName,
+                se.ClassName,
             });
 
         UserAssetsImporter.Register<EmailTemplateEntity>("EmailTemplate", EmailTemplateOperation.Save);
@@ -176,8 +184,8 @@ public static class EmailModelLogic
             return EnumerableExtensions.JoinRelaxed(
                 dbModels,
                 registeredModels.Keys,
-                entity => entity.FullClassName,
-                type => type.FullName!,
+                entity => entity.ClassName,
+                type => type.Name,
                 (entity, type) => KeyValuePair.Create(type, entity),
                 "caching " + nameof(EmailModelEntity))
                 .ToFrozenDictionaryEx();
@@ -196,9 +204,17 @@ public static class EmailModelLogic
     {
         Table table = Schema.Current.Table<EmailModelEntity>();
 
-        Dictionary<string, EmailModelEntity> should = GenerateEmailModelEntities().ToDictionary(s => s.FullClassName);
+        Dictionary<string, EmailModelEntity> should = GenerateEmailModelEntities().ToDictionary(s => s.ClassName);
         Dictionary<string, EmailModelEntity> old = Administrator.TryRetrieveAll<EmailModelEntity>(replacements).ToDictionary(c =>
-            c.FullClassName);
+            c.ClassName);
+
+        //EmailModels used to be keyed by full class name, migrate those without asking.
+        foreach (var oldKey in old.Keys.Where(k => k.Contains('.')))
+        {
+            var className = oldKey.AfterLast('.');
+            if (should.ContainsKey(className) && !old.ContainsKey(className))
+                replacements.GetOrCreate(EmailModelReplacementKey)[oldKey] = className;
+        }
 
         replacements.AskForReplacements(
             old.Keys.ToHashSet(),
@@ -209,12 +225,12 @@ public static class EmailModelLogic
         using (replacements.WithReplacedDatabaseName())
             return Synchronizer.SynchronizeScript(Spacing.Double, should, current,
                 createNew: (tn, s) => table.InsertSqlSync(s),
-                removeOld: (tn, c) => table.DeleteSqlSync(c, se => se.FullClassName == c.FullClassName),
+                removeOld: (tn, c) => table.DeleteSqlSync(c, se => se.ClassName == c.ClassName),
                 mergeBoth: (tn, s, c) =>
                 {
-                    var oldClassName = c.FullClassName;
-                    c.FullClassName = s.FullClassName;
-                    return table.UpdateSqlSync(c, se => se.FullClassName == oldClassName);
+                    var oldClassName = c.ClassName;
+                    c.ClassName = s.ClassName;
+                    return table.UpdateSqlSync(c, se => se.ClassName == oldClassName);
                 });
     }
 
@@ -226,10 +242,24 @@ public static class EmailModelLogic
 
     public static void RegisterEmailModel(Type model, Func<EmailTemplateEntity>? defaultTemplateConstructor, object? queryName = null)
     {
-        registeredModels[model] = new EmailModelInfo(queryName ?? GetEntityType(model))
-        { 
+        //EmailModels are keyed by class name, so the namespace can not be used to disambiguate.
+        var repeated = registeredModels.Keys.FirstOrDefault(t => t != model && t.Name == model.Name);
+        if (repeated != null)
+            throw new InvalidOperationException($"There is already an EmailModel named {model.Name} ({repeated.FullName}), rename one of them or {model.FullName} will not be distinguishable");
+
+        registeredModels[model] = new EmailModelInfo(model, queryName)
+        {
             DefaultTemplateConstructor = defaultTemplateConstructor,
         };
+    }
+
+    //Only EmailModel<T> where T has a registered query gets an implicit queryName.
+    //For an EmailModel over a ModelEntity there is nothing to query, so the template works only with the model.
+    static object? GetDefaultQueryName(Type model)
+    {
+        var entityType = GetEntityType(model);
+
+        return QueryLogic.Queries.QueryDefined(entityType) ? entityType : null;
     }
 
     public static Type GetEntityType(Type model)
@@ -249,7 +279,7 @@ public static class EmailModelLogic
         var list = (from type in registeredModels.Keys
                     select new EmailModelEntity
                     {
-                         FullClassName = type.FullName!
+                         ClassName = type.Name
                     }).ToList();
         return list;
     }
@@ -268,9 +298,10 @@ public static class EmailModelLogic
         return ToEmailModelEntity(typeof(T));
     }
 
-    public static EmailModelEntity GetEmailModelEntity(string fullClassName)
+    //className can also be a legacy full class name, from XMLs exported before EmailModels were keyed by class name
+    public static EmailModelEntity GetEmailModelEntity(string className)
     {
-        return TypeToEntity.Value.Where(x => x.Key.FullName == fullClassName).FirstOrDefault().Value;
+        return TypeToEntity.Value.Where(x => x.Key.Name == className || x.Key.FullName == className).FirstOrDefault().Value;
     }
 
     public static EmailModelEntity ToEmailModelEntity(Type emailModelType)
@@ -345,13 +376,17 @@ public static class EmailModelLogic
             template.MasterTemplate = EmailMasterTemplateLogic.GetDefaultMasterTemplate();
 
         if (template.Name == null)
-            template.Name = emailModel.FullClassName;
+            template.Name = emailModel.ClassName;
 
         template.Model = emailModel;
-        template.Query = QueryLogic.GetQueryEntity(info.QueryName);
 
-        template.ParseData(QueryLogic.Queries.QueryDescription(info.QueryName));
-      
+        var queryName = info.QueryName;
+        if (queryName != null)
+        {
+            template.Query = QueryLogic.GetQueryEntity(queryName);
+            template.ParseData(QueryLogic.Queries.QueryDescription(queryName));
+        }
+
         return template;
     }
 

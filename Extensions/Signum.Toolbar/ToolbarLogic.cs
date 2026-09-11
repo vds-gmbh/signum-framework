@@ -72,6 +72,7 @@ public static class ToolbarLogic
             Database.Query<ToolbarEntity>().Any(a => a.Owner.Is(role)) ||
             Database.Query<ToolbarMenuEntity>().Any(a => a.Owner.Is(role));
 
+
         UserAssetsImporter.Register("Toolbar", ToolbarOperation.Save);
         UserAssetsImporter.Register("ToolbarMenu", ToolbarMenuOperation.Save);
         UserAssetsImporter.Register("ToolbarSwitcher", ToolbarSwitcherOperation.Save);
@@ -400,7 +401,7 @@ public static class ToolbarLogic
 
         var result = new ToolbarResponse
         {
-            guid = element.Guid,
+            guid = (Guid)gr.Key.RowId,
             type = element.Type,
             content = element.Content,
             url = element.Url,
@@ -431,7 +432,7 @@ public static class ToolbarLogic
 
                 return new ToolbarExtraIcon
                 {
-                    guid = extraElement.Guid,
+                    guid = (Guid)extra.RowId,
                     type = extraElement.Type,
                     content = extraElement.Content,
                     url = extraElement.Url,
@@ -511,6 +512,16 @@ public static class ToolbarLogic
     public static ToolbarContentConfig<T> GetContentConfig<T>() where T: Entity
     {
         return (ToolbarContentConfig<T>)ContentConfigDictionary.GetOrThrow(typeof(T));
+    }
+
+    /// <summary>
+    /// The query behind a toolbar element's content, or null when the content is not query-backed
+    /// (a sub-menu, a permission, a dashboard). Meant for grouping elements that lead to the same place:
+    /// it runs no authorization check, so never use it to decide what the current user may open.
+    /// </summary>
+    public static QueryEntity? TryGetRelatedQuery(Lite<Entity> content)
+    {
+        return ContentConfigDictionary.TryGetC(content.EntityType)?.GetRelatedQuery(content);
     }
 
     static Dictionary<Type, IToolbarContentConfig> ContentConfigDictionary = new Dictionary<Type, IToolbarContentConfig>();

@@ -282,7 +282,7 @@ public static class EmailTemplateLogic
             if (model == null)
                 model = EmailModelLogic.CreateModel(template.Model, modifiableEntity);
             else if (template.Model.ToType() != model.GetType())
-                throw new ArgumentException("model should be a {0} instead of {1}".FormatWith(template.Model.FullClassName, model.GetType().FullName));
+                throw new ArgumentException("model should be a {0} instead of {1}".FormatWith(template.Model.ClassName, model.GetType().FullName));
         }
         else
         {
@@ -381,7 +381,6 @@ public static class EmailTemplateLogic
     {
         if (ctx.Mode == TokenSyncMode.Record)
             ctx.AddUserAssetAction(et, UserAssetEntityActionType.Skip);
-        ctx.LogEntityChange(et, UserAssetEntityActionType.Skip);
     }
 
     static void DeleteEmailTemplate(TokenSyncContext ctx, EmailTemplateEntity et)
@@ -398,7 +397,6 @@ public static class EmailTemplateLogic
                 tr.Commit();
             }
         }
-        ctx.LogEntityChange(et, UserAssetEntityActionType.Delete);
     }
 
     static void RegenerateEmailTemplate(TokenSyncContext ctx, EmailTemplateEntity et)
@@ -406,7 +404,6 @@ public static class EmailTemplateLogic
         if (ctx.Mode == TokenSyncMode.Record)
         {
             ctx.AddUserAssetAction(et, UserAssetEntityActionType.Regenerate);
-            ctx.LogEntityChange(et, UserAssetEntityActionType.Regenerate);
             return;
         }
 
@@ -422,8 +419,6 @@ public static class EmailTemplateLogic
             newTemplate.Save();
             tr.Commit();
         }
-
-        ctx.LogEntityChange(et, UserAssetEntityActionType.Regenerate);
     }
 
     static void SaveEmailTemplate(EmailTemplateEntity et)
@@ -449,7 +444,7 @@ public static class EmailTemplateLogic
                     case UserAssetEntityActionType.Regenerate: RegenerateEmailTemplate(ctx, et); return;
                 }
             }
-            catch (Exception ex) { ctx.LogEntityError(et, ex); return; }
+            catch (Exception ex) { ctx.LogError(et, ex); return; }
         }
 
         Console.Write(".");
@@ -609,14 +604,12 @@ public static class EmailTemplateLogic
                     try
                     {
                         SaveEmailTemplate(et);
-                        ctx.LogEntityChange(et, changes.ToArray());
                     }
-                    catch (Exception ex) { ctx.LogEntityError(et, ex); }
+                    catch (Exception ex) { ctx.LogError(et, ex); }
                 }
-                else ctx.LogEntityChange(et, changes.ToArray());
             }
         }
-        catch (Exception ex) { ctx.LogEntityError(et, ex); }
+        catch (Exception ex) { ctx.LogError(et, ex); }
     }
 
 
@@ -674,7 +667,7 @@ public static class EmailTemplateLogic
             }
             catch (Exception ex)
             {
-                exceptions.Add("{0} in {1}:\n{2}".FormatWith(ex.GetType().Name, se.FullClassName, ex.Message.Indent(4)));
+                exceptions.Add("{0} in {1}:\n{2}".FormatWith(ex.GetType().Name, se.ClassName, ex.Message.Indent(4)));
             }
         }
 

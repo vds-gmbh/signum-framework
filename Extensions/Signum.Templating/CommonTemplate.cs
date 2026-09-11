@@ -1,5 +1,6 @@
 using Signum.Utilities.DataStructures;
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using Signum.Utilities.Reflection;
 using Signum.UserAssets.QueryTokens;
@@ -94,6 +95,22 @@ public static class TemplateUtils
     public static string ScapeColon(string tokenOrFormat)
     {
         return tokenOrFormat.Replace(":", @"\:");
+    }
+
+    // ':upper' / ':lower' pseudo-formatters (not real .NET format strings) case-transform the rendered text.
+    // Applied only to the plain ToString() fallback, so real formats for numbers/dates are unaffected.
+    public static string? ApplyCaseFormat(string? text, string? format, CultureInfo culture)
+    {
+        if (text == null)
+            return text;
+
+        if (string.Equals(format, "upper", StringComparison.OrdinalIgnoreCase))
+            return text.ToUpper(culture);
+
+        if (string.Equals(format, "lower", StringComparison.OrdinalIgnoreCase))
+            return text.ToLower(culture);
+
+        return text;
     }
 
     public static object? DistinctSingle(this IEnumerable<ResultRow> rows, ResultColumn column)
@@ -334,7 +351,7 @@ public class TemplateSynchronizationContext
         HasChanges = false;
     }
 
-    internal void SynchronizeToken(ParsedToken parsedToken, string remainingText, bool forceChange)
+    internal void SynchronizeToken(ParsedToken parsedToken, string remainingText, bool forceChange, bool canAny)
     {
         if (parsedToken.QueryToken != null)
             return;
@@ -372,7 +389,12 @@ public class TemplateSynchronizationContext
         SafeConsole.WriteColor(ConsoleColor.Red, "  " + tokenString);
         Console.WriteLine(" " + remainingText);
 
-        FixTokenResult result = QueryTokenSynchronizer.FixToken(TokenSync, tokenString, out QueryToken? token, QueryDescription, SubTokensOptions.CanElement | SubTokensOptions.CanAnyAll /*not always*/ | SubTokensOptions.CanNested | SubTokensOptions.CanToArray, remainingText, allowRemoveToken: false, allowReGenerate: ModelType != null, forceChange);
+        var st = SubTokensOptions.CanElement 
+            | (canAny ? SubTokensOptions.CanAnyAll : 0)
+            | SubTokensOptions.CanNested 
+            | SubTokensOptions.CanToArray;
+
+        FixTokenResult result = QueryTokenSynchronizer.FixToken(TokenSync, tokenString, out QueryToken? token, QueryDescription, st, remainingText, allowRemoveToken: false, allowReGenerate: ModelType != null, forceChange);
         switch (result)
         {
             case FixTokenResult.Nothing:

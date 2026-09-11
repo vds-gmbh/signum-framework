@@ -14,10 +14,10 @@ public class PanelPartEmbedded : EmbeddedEntity, IGridEntity
         BindParent();
     }
 
-    public Guid Guid { get; set; } = Guid.NewGuid();
-
     [StringLengthValidator(Min = 3, Max = 100), Translatable]
     public string? Title { get; set; }
+
+    public bool HideTitle { get; set; }
 
     [StringLengthValidator(Max = int.MaxValue, MultiLine = true), Translatable]
     public string? Tooltip { get; set; }
@@ -83,6 +83,7 @@ public class PanelPartEmbedded : EmbeddedEntity, IGridEntity
             StartColumn = StartColumn,
             Content = Content.Clone(),
             Title = Title,
+            HideTitle = HideTitle,
             Tooltip = Tooltip,
             Row = Row,
             InteractionGroup = InteractionGroup,
@@ -90,7 +91,7 @@ public class PanelPartEmbedded : EmbeddedEntity, IGridEntity
             IconName = IconName,
             TitleColor = TitleColor,
             CustomColor = CustomColor,
-        }; // Guid is intentionally fresh — a clone is a new instance
+        }; // The row id is intentionally not carried over — a clone is a new row
     }
 
     internal void NotifyRowColumn()
@@ -99,14 +100,16 @@ public class PanelPartEmbedded : EmbeddedEntity, IGridEntity
         Notify(() => Columns);
     }
 
-    internal XElement ToXml(IToXmlContext ctx)
+    internal XElement ToXml(IToXmlContext ctx, PrimaryKey? rowId)
     {
         return new XElement("Part",
-            new XAttribute("Guid", Guid),
+            //The MList row id, so the identity of the part survives an export/import, see FromXmlExtensions.SynchronizeRowIds
+            rowId == null ? null! : new XAttribute("Guid", (Guid)rowId.Value),
             new XAttribute("Row", Row),
             new XAttribute("StartColumn", StartColumn),
             new XAttribute("Columns", Columns),
             Title == null ? null! : new XAttribute("Title", Title),
+            HideTitle ? new XAttribute("HideTitle", HideTitle) : null!,
             Tooltip == null ? null! : new XAttribute("Tooltip", Tooltip),
             IconName == null ? null! : new XAttribute("IconName", IconName),
             IconColor == null ? null! : new XAttribute("IconColor", IconColor),
@@ -118,11 +121,11 @@ public class PanelPartEmbedded : EmbeddedEntity, IGridEntity
 
     internal void FromXml(XElement x, IFromXmlContext ctx)
     {
-        Guid = x.Attribute("Guid")?.Let(a => Guid.Parse(a.Value)) ?? Guid.NewGuid();
         Row = int.Parse(x.Attribute("Row")!.Value);
         StartColumn = int.Parse(x.Attribute("StartColumn")!.Value);
         Columns = int.Parse(x.Attribute("Columns")!.Value);
         Title = x.Attribute("Title")?.Value;
+        HideTitle = x.Attribute("HideTitle")?.Let(a => bool.Parse(a.Value)) ?? false;
         Tooltip = x.Attribute("Tooltip")?.Value;
         IconName = x.Attribute("IconName")?.Value;
         IconColor = x.Attribute("IconColor")?.Value;

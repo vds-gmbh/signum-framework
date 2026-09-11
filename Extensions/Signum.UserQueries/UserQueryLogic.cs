@@ -25,6 +25,21 @@ public static class UserQueryLogic
     public static IQueryable<CachedQueryEntity> CachedQueries(this UserQueryEntity uq) =>
     As.Expression(() => Database.Query<CachedQueryEntity>().Where(a => a.UserAssets.Contains(uq.ToLite())));
 
+    [AutoExpressionField]
+    public static IQueryable<DashboardEntity> Dashboards(this UserQueryEntity uq) =>
+        As.Expression(() => Database.Query<DashboardEntity>().Where(d =>
+            TypeLogic.IsIncluded<UserQueryPartEntity>() && d.Parts.Any(p => ((UserQueryPartEntity)p.Content).UserQuery.Is(uq)) ||
+            TypeLogic.IsIncluded<BigValuePartEntity>() && d.Parts.Any(p => ((BigValuePartEntity)p.Content).UserQuery.Is(uq)) ||
+            TypeLogic.IsIncluded<ValueUserQueryListPartEntity>() && d.Parts.Any(p => ((ValueUserQueryListPartEntity)p.Content).UserQueries.Any(e => e.UserQuery.Is(uq)))));
+
+    [AutoExpressionField]
+    public static bool InToolbar(this UserQueryEntity uq) =>
+        As.Expression(() => 
+        Database.Query<ToolbarEntity>().Any(t => t.Elements.Any(e => e.Content.Is(uq))) ||
+        Database.Query<ToolbarMenuEntity>().Any(t => t.Elements.Any(e => e.Content.Is(uq)))
+        );
+
+
     public static void Start(SchemaBuilder sb)
     {
         
@@ -59,6 +74,11 @@ public static class UserQueryLogic
                 uq.Owner,
             });
 
+        new Graph<UserQueryEntity>.ConstructFrom<UserQueryEntity>(UserQueryOperation.Clone)
+        {
+            Construct = (uq, _) => uq.Clone()
+        }.Register();
+
         sb.Schema.WhenIncluded<ToolbarEntity>(() =>
         {
             sb.Schema.Settings.AssertImplementedBy((ToolbarEntity t) => t.Elements.First().Content, typeof(UserQueryEntity));
@@ -73,8 +93,13 @@ public static class UserQueryLogic
                     var uq = UserQueries.Value.GetOrCreate(lite); 
                     return ToolbarLogic.InMemoryFilter(uq) && QueryLogic.Queries.QueryAllowed(uq.Query.ToQueryName(), true);
                 },
-                GetRelatedQuery = lite => lite.RetrieveUserQuery().Query,
+                // Straight from the cache: RetrieveUserQuery logs a view and throws when not allowed, and
+                // neither belongs here. Callers ask for the related query to group or authorize elements,
+                // not to open the user query, and IsAuthorized above already covers the access check.
+                GetRelatedQuery = lite => UserQueries.Value.GetOrCreate(lite).Query,
             }.Register();
+
+            QueryLogic.Expressions.Register((UserQueryEntity uq) => uq.InToolbar());
         });
 
         sb.Schema.WhenIncluded<CachedQueryEntity>(() =>
@@ -87,12 +112,18 @@ public static class UserQueryLogic
             sb.Schema.Settings.AssertImplementedBy((DashboardEntity d) => d.Parts.First().Content, typeof(UserQueryPartEntity));
             sb.Schema.Settings.AssertImplementedBy((DashboardEntity d) => d.Parts.First().Content, typeof(ValueUserQueryListPartEntity));
 
+            QueryLogic.Expressions.Register((UserQueryEntity uq) => uq.Dashboards(), () => typeof(DashboardEntity).NicePluralName());
+
             DashboardLogic.PartNames.AddRange(new Dictionary<string, Type>
             {
                 {"ValueUserQueryListPart", typeof(ValueUserQueryListPartEntity)},
                 {"UserQueryPart", typeof(UserQueryPartEntity)},
                 {"BigValuePart", typeof(BigValuePartEntity)},
             });
+
+            DashboardLogic.RegisterPartRelatedQuery((UserQueryPartEntity p) => p.UserQuery.Query);
+            DashboardLogic.RegisterPartRelatedQuery((BigValuePartEntity p) => p.UserQuery?.Query);
+            // ValueUserQueryListPart shows several queries at once, so no single one represents it.
 
             DashboardLogic.OnGetCachedQueryDefinition.Register((ValueUserQueryListPartEntity vuql, PanelPartEmbedded pp) => vuql.UserQueries.Select(uqe => new CachedQueryDefinition(uqe.UserQuery.ToQueryRequestValue(), uqe.UserQuery.Filters.GetDashboardPinnedFilterTokens(), pp, uqe.UserQuery, uqe.IsQueryCached, canWriteFilters: false)));
             DashboardLogic.OnGetCachedQueryDefinition.Register((UserQueryPartEntity uqp, PanelPartEmbedded pp) => new[] { new CachedQueryDefinition(uqp.UserQuery.ToQueryRequest(), uqp.UserQuery.Filters.GetDashboardPinnedFilterTokens(), pp, uqp.UserQuery, uqp.IsQueryCached, canWriteFilters: false) });
@@ -353,7 +384,6 @@ public static class UserQueryLogic
     {
         if (ctx.Mode == TokenSyncMode.Record)
             ctx.AddUserAssetAction(uq, UserAssetEntityActionType.Skip);
-        ctx.LogEntityChange(uq, UserAssetEntityActionType.Skip);
     }
 
     static void DeleteUserQuery(TokenSyncContext ctx, UserQueryEntity uq)
@@ -370,7 +400,6 @@ public static class UserQueryLogic
                 tr.Commit();
             }
         }
-        ctx.LogEntityChange(uq, UserAssetEntityActionType.Delete);
     }
 
     static void SaveUserQuery(UserQueryEntity uq)
@@ -399,7 +428,7 @@ public static class UserQueryLogic
                         return;
                 }
             }
-            catch (Exception ex) { ctx.LogEntityError(uq, ex); return; }
+            catch (Exception ex) { ctx.LogError(uq, ex); return; }
         }
 
         Console.Write(".");
@@ -576,14 +605,12 @@ public static class UserQueryLogic
                     try
                     {
                         SaveUserQuery(uq);
-                        ctx.LogEntityChange(uq, changes.ToArray());
                     }
-                    catch (Exception ex) { ctx.LogEntityError(uq, ex); }
+                    catch (Exception ex) { ctx.LogError(uq, ex); }
                 }
-                else ctx.LogEntityChange(uq, changes.ToArray());
             }
         }
-        catch (Exception ex) { ctx.LogEntityError(uq, ex); }
+        catch (Exception ex) { ctx.LogError(uq, ex); }
     }
 
 

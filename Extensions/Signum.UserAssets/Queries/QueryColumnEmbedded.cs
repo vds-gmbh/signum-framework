@@ -22,9 +22,10 @@ public class QueryColumnEmbedded : EmbeddedEntity
 
     public CombineRows? CombineRows { get; set; }
 
-    public XElement ToXml(IToXmlContext ctx)
+    public XElement ToXml(IToXmlContext ctx, PrimaryKey? rowId)
     {
         return new XElement("Column",
+            rowId == null ? null! : new XAttribute("Guid", (Guid)rowId.Value),
             new XAttribute("Token", Token.Token.FullKey()),
             SummaryToken != null ? new XAttribute("SummaryToken", SummaryToken.Token.FullKey()) : null!,
             DisplayName.HasText() ? new XAttribute("DisplayName", DisplayName) : null!,
@@ -67,4 +68,13 @@ public class QueryColumnEmbedded : EmbeddedEntity
     {
         return "{0} {1}".FormatWith(Token, displayName);
     }
+
+    public QueryColumnEmbedded Clone() => new QueryColumnEmbedded
+    {
+        Token = Token.Clone(),
+        DisplayName = DisplayName,
+        SummaryToken = SummaryToken?.Clone(),
+        HiddenColumn = HiddenColumn,
+        CombineRows = CombineRows,
+    };
 }

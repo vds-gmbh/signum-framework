@@ -9,6 +9,7 @@ using Signum.UserAssets.Queries;
 using Signum.UserAssets.QueryTokens;
 using Signum.UserAssets.TokenMigrations;
 using Signum.Utilities.DataStructures;
+using Signum.Word.Spreedsheet;
 using System.Collections.Frozen;
 using System.Data;
 using System.Globalization;
@@ -359,7 +360,7 @@ public static class WordTemplateLogic
                     if (model == null)
                         model = WordModelLogic.CreateDefaultWordModel(template.Model, modifiableEntity);
                     else if (template.Model.ToType() != model.GetType())
-                        throw new ArgumentException("model should be a {0} instead of {1}".FormatWith(template.Model.FullClassName, model.GetType().FullName));
+                        throw new ArgumentException("model should be a {0} instead of {1}".FormatWith(template.Model.ClassName, model.GetType().FullName));
                 }
                 else
                 {
@@ -406,6 +407,12 @@ public static class WordTemplateLogic
 
                             p.Switch("AssertClean");
                             renderer.AssertClean();
+
+                            if (document is SpreadsheetDocument ssd && ssd.WorkbookPart is { } workbookPart)
+                            {
+                                p.Switch("FinalizeSpreadsheet");
+                                SpreadsheetUtils.Finalize(workbookPart, parser.SpreadsheetForeachBlocks); Dump(document, "3b.Spreadsheet.txt");
+                            }
 
                             p.Switch("FixDocument");
                             FixDocument(document); Dump(document, "4.Fixed.txt");
@@ -501,7 +508,7 @@ public static class WordTemplateLogic
                     case UserAssetEntityActionType.Regenerate: RegenerateWordTemplateAndFile(ctx, wt); return;
                 }
             }
-            catch (Exception ex) { ctx.LogEntityError(wt, ex); return; }
+            catch (Exception ex) { ctx.LogError(wt, ex); return; }
         }
 
         Console.Write(".");
@@ -677,19 +684,14 @@ public static class WordTemplateLogic
                     try
                     {
                         SaveWordTemplate(wt, file, fileTouched, entityTouched);
-                        ctx.LogEntityChange(wt, changes.ToArray());
                     }
-                    catch (Exception ex) { ctx.LogEntityError(wt, ex); }
-                }
-                else
-                {
-                    ctx.LogEntityChange(wt, changes.ToArray());
+                    catch (Exception ex) { ctx.LogError(wt, ex); }
                 }
             }
         }
         catch (Exception ex)
         {
-            ctx.LogEntityError(wt, ex);
+            ctx.LogError(wt, ex);
         }
     }
 
@@ -703,8 +705,6 @@ public static class WordTemplateLogic
     {
         if (ctx.Mode == TokenSyncMode.Record)
             ctx.AddUserAssetAction(wt, UserAssetEntityActionType.Skip);
-
-        ctx.LogEntityChange(wt, UserAssetEntityActionType.Skip);
     }
 
     /// <summary>
@@ -727,8 +727,6 @@ public static class WordTemplateLogic
                 tr.Commit();
             }
         }
-
-        ctx.LogEntityChange(wt, UserAssetEntityActionType.Delete);
     }
 
     /// <summary>
@@ -740,7 +738,6 @@ public static class WordTemplateLogic
         if (ctx.Mode == TokenSyncMode.Record)
         {
             ctx.AddUserAssetAction(wt, UserAssetEntityActionType.Regenerate);
-            ctx.LogEntityChange(wt, UserAssetEntityActionType.Regenerate);
             return;
         }
 
@@ -763,8 +760,6 @@ public static class WordTemplateLogic
             wt.Save();
             tr.Commit();
         }
-
-        ctx.LogEntityChange(wt, UserAssetEntityActionType.Regenerate);
     }
 
     /// <summary>
@@ -862,7 +857,7 @@ public static class WordTemplateLogic
             }
             catch (Exception ex)
             {
-                exceptions.Add("{0} in {1}:\n{2}".FormatWith(ex.GetType().Name, se.FullClassName, ex.Message.Indent(4)));
+                exceptions.Add("{0} in {1}:\n{2}".FormatWith(ex.GetType().Name, se.ClassName, ex.Message.Indent(4)));
             }
         }
 
@@ -891,7 +886,7 @@ public static class WordTemplateLogic
                     if (already == null)
                     {
                         defaultTemplate.Save();
-                        SafeConsole.WriteLineColor(ConsoleColor.Green, $"Created {se.FullClassName}");
+                        SafeConsole.WriteLineColor(ConsoleColor.Green, $"Created {se.ClassName}");
                     }
                     else
                     {
@@ -903,19 +898,19 @@ public static class WordTemplateLogic
                             {
                                 toModify.Template = defaultTemplate.Template;
                                 toModify.Save();
-                                SafeConsole.WriteLineColor(ConsoleColor.Yellow, $"Initialized {se.FullClassName}");
+                                SafeConsole.WriteLineColor(ConsoleColor.Yellow, $"Initialized {se.ClassName}");
                             }
                             else if (MemoryExtensions.SequenceEqual<byte>(toModify.Template.Retrieve().BinaryFile, defaultTemplate.Template.Entity.BinaryFile))
                             {
-                                SafeConsole.WriteLineColor(ConsoleColor.DarkGray, $"Identical {se.FullClassName}");
+                                SafeConsole.WriteLineColor(ConsoleColor.DarkGray, $"Identical {se.ClassName}");
                             }
                             else
                             {
-                                if (SafeConsole.Ask(ref rememberedAnswer, $"Override {se.FullClassName}?"))
+                                if (SafeConsole.Ask(ref rememberedAnswer, $"Override {se.ClassName}?"))
                                 {
                                     toModify.Template = defaultTemplate.Template;
                                     toModify.Save();
-                                    SafeConsole.WriteLineColor(ConsoleColor.Yellow, $"Overriden {se.FullClassName}");
+                                    SafeConsole.WriteLineColor(ConsoleColor.Yellow, $"Overriden {se.ClassName}");
                                 }
                             }
                         }
@@ -924,8 +919,8 @@ public static class WordTemplateLogic
             }
             catch (Exception ex)
             {
-                SafeConsole.WriteLineColor(ConsoleColor.Red, se.FullClassName);
-                SafeConsole.WriteLineColor(ConsoleColor.Red, "{0} in {1}:\n{2}".FormatWith(ex.GetType().Name, se.FullClassName, ex.Message.Indent(4)));
+                SafeConsole.WriteLineColor(ConsoleColor.Red, se.ClassName);
+                SafeConsole.WriteLineColor(ConsoleColor.Red, "{0} in {1}:\n{2}".FormatWith(ex.GetType().Name, se.ClassName, ex.Message.Indent(4)));
             }
         }
     }

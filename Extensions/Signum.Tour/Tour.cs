@@ -6,7 +6,7 @@ using Signum.UserQueries;
 
 namespace Signum.Tour;
 
-[EntityKind(EntityKind.Main, EntityData.Master)]
+[EntityKind(EntityKind.Main, EntityData.Master), PrimaryKey(typeof(Guid))]
 public class TourEntity : Entity, IUserAssetEntity
 {
     [UniqueIndex]
@@ -26,9 +26,6 @@ public class TourEntity : Entity, IUserAssetEntity
 
     public bool ShowCloseButton { get; set; } = true;
 
-    [UniqueIndex]
-    public Guid Guid { get; set; } = Guid.NewGuid();
-
     [AutoExpressionField]
     public override string ToString() => As.Expression(() => IsNew ? this.BaseToString() : Trigger.ToString()!);
 
@@ -37,11 +34,10 @@ public class TourEntity : Entity, IUserAssetEntity
         var triggerValue =
             Trigger is Lite<TypeEntity> typeEntity ? typeEntity.RetrieveFromCache().CleanName :
             Trigger is Lite<TourTriggerSymbol> symbol ? ctx.RetrieveLite(symbol).Key :
-            Trigger is Lite<IUserAssetEntity> userAsset ? TypeLogic.GetCleanName(Trigger.EntityType) + "|" + ctx.RetrieveLite(userAsset).Guid :
-            Trigger.ToString()!;
+            Trigger.KeyLong(); //A LiteKey for the user assets (Dashboard, UserQuery), see IFromXmlContext.ParseLite
 
         return new XElement("Tour",
-            new XAttribute("Guid", Guid),
+            new XAttribute("Guid", (Guid)Id),
             new XAttribute("Trigger", triggerValue),
             new XAttribute("ShowProgress", ShowProgress),
             new XAttribute("Animate", Animate),
@@ -53,10 +49,11 @@ public class TourEntity : Entity, IUserAssetEntity
     {
         var triggerValue = element.Attribute("Trigger")!.Value;
 
-        Trigger = triggerValue.Contains('|')
-            ? ctx.RetrieveUserAssetLite(ctx.GetType(triggerValue.Before('|')).ToType(), Guid.Parse(triggerValue.After('|')))
+        //A LiteKey (or the legacy cleanName|guid) means a user asset, a plain name means a TypeEntity or a TourTriggerSymbol
+        Trigger = (triggerValue.Contains(';') || triggerValue.Contains('|')
+            ? ctx.ParseLite(triggerValue, this, t => t.Trigger)
             : (Lite<Entity>?)ctx.TryGetTypeLite(triggerValue)
-              ?? ctx.TryGetSymbol<TourTriggerSymbol>(triggerValue)?.ToLite()
+              ?? ctx.TryGetSymbol<TourTriggerSymbol>(triggerValue)?.ToLite())
               ?? throw new InvalidOperationException($"Trigger '{triggerValue}' not found");
 
         Steps.Synchronize(element.Elements("TourStep").ToList(), (s, x) => s.FromXml(x, ctx, this));
@@ -72,18 +69,6 @@ public static class TourOperation
     public static readonly ExecuteSymbol<TourEntity> Save;
     public static readonly DeleteSymbol<TourEntity> Delete;
 }
-
-[EntityKind(EntityKind.SystemString, EntityData.Master, IsLowPopulation = true)]
-public class TourTriggerSymbol : Symbol
-{
-    private TourTriggerSymbol() { }
-
-    public TourTriggerSymbol(Type declaringType, string fieldName) :
-        base(declaringType, fieldName)
-    {
-    }
-}
-
 
 [EntityKind(EntityKind.Part, EntityData.Master)]
 public class TourStepEntity : Entity, ICanBeOrdered
@@ -167,6 +152,8 @@ public class CssStepEmbedded : EmbeddedEntity
     [ImplementedBy(typeof(QueryEntity))]
     public Lite<Entity>? ToolbarContent { get; set; }
 
+    static readonly PropertyRoute toolbarContentRoute = PropertyRoute.Construct((TourStepEntity ts) => ts.CssSteps.First().ToolbarContent);
+
     public Guid? DashboardPart { get; set; }
 
     [StringLengthValidator(Max = 400)]
@@ -197,8 +184,7 @@ public class CssStepEmbedded : EmbeddedEntity
         var toolbarContent =
             ToolbarContent is Lite<QueryEntity> query ? ctx.RetrieveLite(query).Key :
             ToolbarContent is Lite<PermissionSymbol> perm ? ctx.RetrieveLite(perm).Key :
-            ToolbarContent != null ? TypeLogic.GetCleanName(ToolbarContent.EntityType) + "|" + ((IUserAssetEntity)ToolbarContent.Retrieve()).Guid :
-            null;
+            ToolbarContent?.KeyLong(); //A LiteKey for anything else, see IFromXmlContext.ParseLite
 
         return new XElement("CssStep",
             new XAttribute("Type", Type.ToString()),
@@ -213,12 +199,19 @@ public class CssStepEmbedded : EmbeddedEntity
     {
         Type = element.Attribute("Type")!.Value.ToEnum<CssStepType>();
         CssSelector = element.Attribute("CssSelector")?.Value;
-        Property = element.Attribute("Property")?.Let(a => userAsset.Trigger is Lite<TypeEntity> typeEntity
-            ? ctx.GetPropertyRoute(typeEntity.RetrieveFromCache(), a.Value)
-            : null);
+        Property = element.Attribute("Property")?.Let(a =>
+        {
+            var typeEntity =
+                userAsset.Trigger is Lite<TypeEntity> te ? te.RetrieveFromCache() :
+                userAsset.Trigger is Lite<TourTriggerSymbol> sym ? TourTriggerLogic.GetTriggerType(SymbolLogic<TourTriggerSymbol>.ToSymbol(sym.ToString()!))?.ToTypeEntity() :
+                null;
+
+            return typeEntity == null ? null : ctx.GetPropertyRoute(typeEntity, a.Value);
+        });
         var content = element.Attribute("ToolbarContent")?.Value;
+        //A LiteKey (or the legacy cleanName|guid) means a user asset, a plain name means a QueryEntity or a PermissionSymbol
         ToolbarContent = !content.HasText() ? null :
-           content.Contains('|') ? ctx.RetrieveUserAssetLite(ctx.GetType(content.Before('|')).ToType(), Guid.Parse(content.After('|'))) :
+           content.Contains(';') || content.Contains('|') ? ctx.ParseLite(content, userAsset, toolbarContentRoute) :
            (Lite<Entity>?)ctx.TryGetQuery(content)?.ToLite() ??
            (Lite<Entity>?)SymbolLogic<PermissionSymbol>.TryToSymbol(content)?.ToLite() ??
            throw new InvalidOperationException($"ToolbarContent '{content}' not found");

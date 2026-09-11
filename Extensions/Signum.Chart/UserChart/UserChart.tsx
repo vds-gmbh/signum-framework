@@ -75,20 +75,16 @@ export default function UserChart(p : { ctx: TypeContext<UserChartEntity> }): Re
               {!ctx.value.isNew &&
                 <div>
                   <h2 className="h5 mt-0">{UserAssetMessage.UsedBy.niceToString()}</h2>
-                  <SearchValueLine ctx={ctx4} findOptions={{ queryName: ToolbarMenuEntity, filterOptions: [{ token: ToolbarMenuEntity.token(a => a.entity.elements).any().append(a => a.content), value: ctx.value }] }} />
-                  <SearchValueLine ctx={ctx4} findOptions={{ queryName: ToolbarEntity, filterOptions: [{ token: ToolbarEntity.token(a => a.entity.elements).any().append(a => a.content), value: ctx.value }] }} />
-                  <SearchValueLine ctx={ctx4} findOptions={{
-                    queryName: DashboardEntity,
+                  {ToolbarMenuEntity.memberImplements(a => a.elements[0].element.content, UserChartEntity) && <SearchValueLine ctx={ctx4} findOptions={ToolbarMenuEntity.findOptions(token => ({ filterOptions: [token(a => a.entity.elements).any().append(a => a.content).filter("EqualTo", ctx.value)] }))} />}
+                  {ToolbarEntity.memberImplements(a => a.elements[0].element.content, UserChartEntity) && <SearchValueLine ctx={ctx4} findOptions={ToolbarEntity.findOptions(token => ({ filterOptions: [token(a => a.entity.elements).any().append(a => a.content).filter("EqualTo", ctx.value)] }))} />}
+                  <SearchValueLine ctx={ctx4} findOptions={DashboardEntity.findOptions(token => ({
                     filterOptions: [
-                      {
-                        token: DashboardEntity.token(a => a.entity.parts).any(), groupOperation: "Or",
-                        filters: [
-                          { token: DashboardEntity.token(a => a.entity.parts).any().append(a => a.content).cast(UserChartPartEntity).append(a => a.userChart), value: ctx.value },
-                          { token: DashboardEntity.token(a => a.entity.parts).any().append(a => a.content).cast(CombinedUserChartPartEntity).append(a => a.userCharts).any().append(a => a.userChart), value: ctx.value },
-                        ]
-                      }
+                      token(a => a.entity.parts).any().filterGroup("Or", {}, t => [
+                        DashboardEntity.memberImplements(a => a.parts[0].element.content, UserChartPartEntity) ? t(a => a.content).cast(UserChartPartEntity).append(a => a.userChart).filter("EqualTo", ctx.value) : null,
+                        DashboardEntity.memberImplements(a => a.parts[0].element.content, CombinedUserChartPartEntity) ? t(a => a.content).cast(CombinedUserChartPartEntity).append(a => a.userCharts).any().append(a => a.userChart).filter("EqualTo", ctx.value) : null,
+                      ])
                     ]
-                  }} />
+                  }))} />
                 </div>
               }
             </div>

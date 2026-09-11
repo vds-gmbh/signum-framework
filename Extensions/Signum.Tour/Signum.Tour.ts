@@ -54,7 +54,6 @@ export interface TourEntity extends Entities.Entity, UserAssets.IUserAssetEntity
   showProgress: boolean;
   animate: boolean;
   showCloseButton: boolean;
-  guid: string /*Guid*/;
 }
 
 export namespace TourMessage {
@@ -64,6 +63,8 @@ export namespace TourMessage {
   export const Done: MessageKey = new MessageKey("TourMessage", "Done");
   export const ReplayTour: MessageKey = new MessageKey("TourMessage", "ReplayTour");
   export const StartTour: MessageKey = new MessageKey("TourMessage", "StartTour");
+  export const CreateTour: MessageKey = new MessageKey("TourMessage", "CreateTour");
+  export const EditTour: MessageKey = new MessageKey("TourMessage", "EditTour");
 }
 
 export namespace TourOperation {
@@ -82,10 +83,5 @@ export interface TourStepEntity extends Entities.Entity {
   align: PopoverAlign | null;
   click: ClickTrigger | null;
   order: number;
-}
-
-export const TourTriggerSymbol: Type<TourTriggerSymbol> = new Type<TourTriggerSymbol>("TourTrigger");
-export interface TourTriggerSymbol extends Basics.Symbol {
-  Type: "TourTrigger";
 }
 

@@ -30,12 +30,25 @@ public static class DashboardLogic
     public static IQueryable<CachedQueryEntity> CachedQueries(this DashboardEntity db) =>
         As.Expression(() => Database.Query<CachedQueryEntity>().Where(a => a.Dashboard.Is(db)));
 
+
+    [AutoExpressionField]
+    public static bool InToolbar(this DashboardEntity uq) =>
+        As.Expression(() =>
+            Database.Query<ToolbarEntity>().Any(t => t.Elements.Any(e => e.Content.Is(uq))) ||
+            Database.Query<ToolbarMenuEntity>().Any(t => t.Elements.Any(e => e.Content.Is(uq)))
+        );
+
+    [AutoExpressionField]
+    public static DashboardEntity? Dashboard(this IPartEntity part) =>
+        As.Expression(() => Database.Query<DashboardEntity>().FirstOrDefault(d => d.ContainsContent(part)));
+
     public static void Start(SchemaBuilder sb, IFileTypeAlgorithm? cachedQueryAlgorithm)
     {
         if (sb.AlreadyDefined(MethodInfo.GetCurrentMethod()))
             return;
 
         PermissionLogic.RegisterPermissions(DashboardPermission.ViewDashboard);
+
 
 
         UserAssetsImporter.Register<DashboardEntity>("Dashboard", DashboardOperation.Save);
@@ -76,6 +89,8 @@ public static class DashboardLogic
                 cp.DashboardPriority,
             });
 
+        QueryLogic.Expressions.Register((IPartEntity p) => p.Dashboard(), () => typeof(DashboardEntity).NiceName());
+
         sb.Schema.EntityEvents<DashboardEntity>().Retrieved += DashboardLogic_Retrieved;
 
         sb.Schema.WhenIncluded<ToolbarEntity>(() =>
@@ -91,6 +106,9 @@ public static class DashboardLogic
                 DefaultIconColor = lite => Dashboards.Value.GetOrCreate(lite).IconColor,
                 DefaultIconName = lite => Dashboards.Value.GetOrCreate(lite).IconName,
             }.Register();
+
+            QueryLogic.Expressions.Register((DashboardEntity d) => d.InToolbar());
+            QueryLogic.Expressions.Register((ToolbarEntity t) => t.Dashboards(), () => typeof(DashboardEntity).NicePluralName());
         });
 
 
@@ -145,6 +163,23 @@ public static class DashboardLogic
 
 
     public static Dictionary<string, Type> PartNames = new();
+
+    static Dictionary<Type, Func<IPartEntity, QueryEntity?>> PartRelatedQueries = new();
+
+    /// <summary>
+    /// Declares which query a kind of dashboard part shows, so that callers can group parts by what they display
+    /// without knowing every part type. Grouping only: it implies no authorization.
+    /// </summary>
+    public static void RegisterPartRelatedQuery<T>(Func<T, QueryEntity?> getRelatedQuery) where T : class, IPartEntity
+    {
+        PartRelatedQueries[typeof(T)] = p => getRelatedQuery((T)p);
+    }
+
+    /// <summary>The query a dashboard part shows, or null when it shows none or its kind declared none.</summary>
+    public static QueryEntity? TryGetRelatedQuery(IPartEntity part)
+    {
+        return PartRelatedQueries.TryGetC(part.GetType())?.Invoke(part);
+    }
 
     public static IPartEntity GetPart(IFromXmlContext ctx, IPartEntity old, XElement element)
     {
@@ -618,6 +653,14 @@ public static class DashboardLogic
         
 }
 
+public static class ToolbarDashboardExtensions
+{
+    // Placed in a separate class because DashboardLogic already defines a static member named 'Dashboards'.
+    [AutoExpressionField]
+    public static IQueryable<DashboardEntity> Dashboards(this ToolbarEntity tb) =>
+        As.Expression(() => Database.Query<DashboardEntity>().Where(d => tb.Elements.Any(e => e.Content.Is(d))));
+}
+
 public class CachedQueryDefinition
 {
     public CachedQueryDefinition(QueryRequest queryRequest, List<(QueryToken token, bool prototedToDashboard)> pinnedFiltersTokens, PanelPartEmbedded panelPart, IUserAssetEntity userAsset, bool isQueryCached, bool canWriteFilters)
@@ -625,7 +668,7 @@ public class CachedQueryDefinition
         QueryRequest = queryRequest;
         PinnedFiltersTokens = pinnedFiltersTokens;
         PanelPart = panelPart;
-        Guid = userAsset.Guid;
+        Guid = (Guid)userAsset.Id;
         UserAsset = userAsset.ToLite();
         IsQueryCached = isQueryCached;
         CanWriteFilters = canWriteFilters;

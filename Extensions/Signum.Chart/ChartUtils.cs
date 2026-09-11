@@ -237,6 +237,8 @@ public enum ChartMessage
     _0Of1_2,
     [Description("{0} of {1}: {2} per {3}")]
     _0Of1_2Per3,
+    [Description("(blank)")]
+    Blank,
 }
 
 
@@ -336,7 +338,8 @@ public enum ChartParameter
     Zoom,
     Value,
     Percent,
-    Total
+    Total,
+    Legend
 }
 
 public enum ChartParameterGroupMessage

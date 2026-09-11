@@ -13,7 +13,7 @@ public class SelectTest
     public SelectTest()
     {
         MusicStarter.StartAndLoad();
-        Connector.CurrentLogger = new DebugTextWriter();
+        Connector.CurrentLogger = SqlDumpTextWriter.Enabled ? new SqlDumpTextWriter() : new DebugTextWriter();
     }
 
     [Fact]
@@ -672,6 +672,24 @@ public class SelectTest
 
         Assert.Contains(list, a => a!.Value != Math.Round(a!.Value)); //Decimal places are preserved
 
+    }
+
+    [Fact]
+    public void CloneMListInSelect()
+    {
+        using (var tr = new Transaction())
+        {
+            using (OperationLogic.AllowSave<BandEntity>())
+                Database.Query<BandEntity>()
+                 .Select(b => new BandEntity
+                 {
+                     Name = b.Name + "(copy)",
+                     Members = b.Members.ToMList(),
+                
+                 }).SaveList();
+
+            //tr.Commit();
+        }
     }
 }
 

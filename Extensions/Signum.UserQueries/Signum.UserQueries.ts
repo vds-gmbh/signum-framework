@@ -64,9 +64,11 @@ export interface UserQueryEntity extends Entities.Entity, UserAssets.IUserAssetE
   groupResults: boolean;
   entityType: Entities.Lite<Basics.TypeEntity> | null;
   hideQuickLink: boolean;
+  showTitleAsBreadcrumb: boolean;
   includeDefaultFilters: boolean | null;
   owner: Entities.Lite<Entities.Entity> | null;
   displayName: string;
+  createTitle: string | null;
   appendFilters: boolean;
   refreshMode: DynamicQuery.RefreshMode;
   filters: Entities.MList<Queries.QueryFilterEmbedded>;
@@ -78,7 +80,6 @@ export interface UserQueryEntity extends Entities.Entity, UserAssets.IUserAssetE
   systemTime: SystemTimeEmbedded | null;
   healthCheck: HealthCheckEmbedded | null;
   customDrilldowns: Entities.MList<Entities.Lite<Entities.Entity>>;
-  guid: string /*Guid*/;
 }
 
 export const UserQueryLiteModel: Type<UserQueryLiteModel> = new Type<UserQueryLiteModel>("UserQueryLiteModel");
@@ -87,6 +88,8 @@ export interface UserQueryLiteModel extends Entities.ModelEntity {
   displayName: string;
   query: Basics.QueryEntity;
   hideQuickLink: boolean;
+  showTitleAsBreadcrumb: boolean;
+  createTitle: string | null;
 }
 
 export namespace UserQueryMessage {
@@ -102,10 +105,12 @@ export namespace UserQueryMessage {
   export const Date: MessageKey = new MessageKey("UserQueryMessage", "Date");
   export const Pagination: MessageKey = new MessageKey("UserQueryMessage", "Pagination");
   export const _0CountOf1Is2Than3: MessageKey = new MessageKey("UserQueryMessage", "_0CountOf1Is2Than3");
+  export const OverridesTheDefault0CaptionOfTheCreateButton: MessageKey = new MessageKey("UserQueryMessage", "OverridesTheDefault0CaptionOfTheCreateButton");
 }
 
 export namespace UserQueryOperation {
   export const Save : Operations.ExecuteSymbol<UserQueryEntity> = registerSymbol("Operation", "UserQueryOperation.Save");
+  export const Clone : Operations.ConstructSymbol_From<UserQueryEntity, UserQueryEntity> = registerSymbol("Operation", "UserQueryOperation.Clone");
   export const Delete : Operations.DeleteSymbol<UserQueryEntity> = registerSymbol("Operation", "UserQueryOperation.Delete");
 }
 

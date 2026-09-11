@@ -16,7 +16,7 @@ import { parseIcon } from '@framework/Components/IconTypeahead'
 import { ToolbarUrl } from '../ToolbarUrl';
 import { classes } from '@framework/Globals';
 import { LayoutMessage, ToolbarEntity, ToolbarMenuEntity, ToolbarSwitcherEntity } from '../Signum.Toolbar';
-import { Binding, getTypeInfo, newLite, typeAllowedInDomain } from '../../../Signum/React/Reflection';
+import { Binding, getTypeInfo, tryGetTypeInfo, newLite, typeAllowedInDomain } from '../../../Signum/React/Reflection';
 import { Finder } from '../../../Signum/React/Finder';
 import { EntityLine, TypeContext } from '../../../Signum/React/Lines'
 import { RightCaretDropdown } from './RightCaretDropdown'
@@ -370,7 +370,10 @@ function ToolbarMenu(p: { response: ToolbarResponse<ToolbarMenuEntity>, ctx: Too
 
 export function ToolbarMenuItems(p: { response: ToolbarResponse<ToolbarMenuEntity>, ctx: ToolbarContext, selectedEntity: Lite<Entity> | null }): React.ReactNode {
   const entityType = p.response.entityType;
-  if (entityType)
+  // Only render the entity-bound menu when the current user actually has UI access to the type.
+  // Otherwise the type is absent from the client reflection and getTypeInfo would throw, crashing
+  // the whole toolbar (and blocking login). Fall back to the plain, server-filtered elements.
+  if (entityType && tryGetTypeInfo(entityType))
     return <ToolbarMenuItemsEntityType response={p.response} ctx={p.ctx} selectedEntity={p.selectedEntity} />
 
   return <>
@@ -498,7 +501,12 @@ function ToolbarMenuItemsEntityType(p: { response: ToolbarResponse<ToolbarMenuEn
   );
 }
 
-function simplifyForEntity(resp: ToolbarResponse<any>[], selectedEntity: Lite<Entity>, hiddenGuids?: Set<string>): ToolbarResponse<any>[] {
+/**
+ * Drops the elements that should not be shown for `selectedEntity`: the ones in `hiddenGuids`
+ * (see `ToolbarClient.entityElementFilters`) and the ones querying a type the entity's domain
+ * does not allow, then cleans up the dividers/headers left dangling.
+ */
+export function simplifyForEntity(resp: ToolbarResponse<any>[], selectedEntity: Lite<Entity>, hiddenGuids?: Set<string>): ToolbarResponse<any>[] {
   var result = resp
     .map(tr => {
 
@@ -623,7 +631,11 @@ function ToolbarSwitcher(p: { response: ToolbarResponse<ToolbarSwitcherEntity>, 
         {selectedOption &&
           <li>
             <ul>
-              {selectedOption.elements && <ToolbarMenuItems response={selectedOption} ctx={p.ctx} selectedEntity={p.selectedEntity} />}
+              {/* Keyed by the selected menu: without it React reuses the ToolbarMenuItemsEntityType instance
+                  across a menu switch, so its selEntityRef still holds the previous menu's entity while
+                  entityType is already the new menu's. The entity-element filter then runs for the wrong
+                  pair (a Measure lite handed to the Project filter). Remounting gives it fresh state. */}
+              {selectedOption.elements && <ToolbarMenuItems key={liteKeyOrQuery(selectedOption.content)} response={selectedOption} ctx={p.ctx} selectedEntity={p.selectedEntity} />}
             </ul>
           </li>
         }

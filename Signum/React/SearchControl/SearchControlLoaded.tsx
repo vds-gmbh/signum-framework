@@ -106,6 +106,8 @@ export interface SearchControlLoadedProps {
   allowChangeOrder: boolean;
   create: boolean | ((fo: FindOptionsParsed) => boolean);
   createButtonClass?: string;
+  //Overrides the default "Create new [TypeName]" caption/title of the create button
+  createTitle?: string | ((sc: SearchControlLoaded) => string);
   view: boolean | "InPlace";
   largeToolbarButtons: boolean;
   defaultRefreshMode?: RefreshMode;
@@ -182,8 +184,9 @@ export class SearchControlLoaded extends React.Component<SearchControlLoadedProp
   static maxToArrayElements = 100;
   static mobileOptions: ((fop: FindOptionsParsed) => SearchControlMobileOptions) | null = null;
   static onDrilldown: ((scl: SearchControlLoaded, row: ResultRow, options?: OnDrilldownOptions) => Promise<boolean | undefined>) | null = null;
+  //Allows extensions (i.e. UserQueries) to override the caption of the create button
+  static getCreateTitle: ((scl: SearchControlLoaded) => string | undefined) | null = null;
 
-  pageSubTitle?: string;
   extraUrlParams: { [key: string]: string | undefined } = {};
 
   getMobileOptions(fop: FindOptionsParsed): SearchControlMobileOptions {
@@ -436,7 +439,7 @@ export class SearchControlLoaded extends React.Component<SearchControlLoadedProp
 
     this.setState({
       contextualMenu: {
-        position: getMouseEventPosition(event, event.currentTarget.querySelector('tbody')),
+        position: getMouseEventPosition(event),
         columnIndex,
         rowIndex,
         columnOffset: td.tagName == "TH" ? this.getOffset(event.pageX, td.getBoundingClientRect(), Number.MAX_VALUE) : undefined,
@@ -838,6 +841,13 @@ export class SearchControlLoaded extends React.Component<SearchControlLoadedProp
   }
 
   createTitle(): string {
+
+    const custom = this.props.createTitle ?? this.props.querySettings?.createTitle;
+    const customTitle = custom == null ? SearchControlLoaded.getCreateTitle?.(this) :
+      typeof custom == "function" ? custom(this) : custom;
+
+    if (customTitle != null)
+      return customTitle;
 
     const tis = this.entityColumnTypeInfos();
 
@@ -1994,7 +2004,8 @@ export class SearchControlLoaded extends React.Component<SearchControlLoadedProp
           {this.props.allowSelection &&
             <td className="centered-cell">
               {this.props.selectionFormatter ? this.props.selectionFormatter(this, row, i) :
-                <input type="checkbox"
+                <input type={this.props.allowSelection == "single" ? "radio" : "checkbox"}
+                  name={this.props.allowSelection == "single" ? `sf-td-selection-${this.props.findOptions.queryKey}` : undefined}
                   className="sf-td-selection form-check-input"
                   checked={this.state.selectedRows!.contains(row)}
                   onChange={e => this.handleChecked(e, i)}
@@ -2114,7 +2125,7 @@ export class SearchControlLoaded extends React.Component<SearchControlLoadedProp
               {this.props.allowSelection &&
                 <span className="row-selection">
                   {this.props.selectionFormatter ? this.props.selectionFormatter(this, row, i) :
-                    <input type="checkbox" className="sf-td-selection form-check-input" checked={this.state.selectedRows!.contains(row)} onChange={e => this.handleChecked(e, i)} data-index={i} />}
+                    <input type={this.props.allowSelection == "single" ? "radio" : "checkbox"} name={this.props.allowSelection == "single" ? `sf-td-selection-${this.props.findOptions.queryKey}` : undefined} className="sf-td-selection form-check-input" checked={this.state.selectedRows!.contains(row)} onChange={e => this.handleChecked(e, i)} data-index={i} />}
                 </span>
               }
 

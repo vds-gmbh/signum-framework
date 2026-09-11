@@ -134,8 +134,8 @@ export interface ExceptionEntity extends Entities.Entity {
 
 export const ExceptionOrigin: EnumType<ExceptionOrigin> = new EnumType<ExceptionOrigin>("ExceptionOrigin");
 export type ExceptionOrigin =
-  "Backend_DotNet" |
-  "Frontend_React";
+  "Backend" |
+  "Frontend";
 
 export interface IEmailOwnerEntity extends Entities.Entity {
 }
@@ -188,6 +188,11 @@ export interface SystemEventLogEntity extends Entities.Entity {
   exception: Entities.Lite<ExceptionEntity> | null;
 }
 
+export const TourTriggerSymbol: Type<TourTriggerSymbol> = new Type<TourTriggerSymbol>("TourTrigger");
+export interface TourTriggerSymbol extends Symbol {
+  Type: "TourTrigger";
+}
+
 export const TranslatableRouteType: EnumType<TranslatableRouteType> = new EnumType<TranslatableRouteType>("TranslatableRouteType");
 export type TranslatableRouteType =
   "Text" |
@@ -198,8 +203,10 @@ export interface TypeEntity extends Entities.Entity {
   Type: "Type";
   tableName: string;
   cleanName: string;
-  namespace: string;
+  namespace: string | null;
+  package: string | null;
   className: string;
+  isPart: boolean | null;
 }
 
 export const VisualTipConsumedEntity: Type<VisualTipConsumedEntity> = new Type<VisualTipConsumedEntity>("VisualTipConsumed");

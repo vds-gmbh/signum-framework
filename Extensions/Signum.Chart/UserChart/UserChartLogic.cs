@@ -21,7 +21,21 @@ public static class UserChartLogic
     [AutoExpressionField]
     public static IQueryable<CachedQueryEntity> CachedQueries(this UserChartEntity uc) =>
         As.Expression(() => Database.Query<CachedQueryEntity>().Where(a => a.UserAssets.Contains(uc.ToLite())));
-    
+
+    [AutoExpressionField]
+    public static IQueryable<DashboardEntity> Dashboards(this UserChartEntity uc) =>
+        As.Expression(() => Database.Query<DashboardEntity>().Where(d =>
+            TypeLogic.IsIncluded<UserChartPartEntity>() && d.Parts.Any(p => ((UserChartPartEntity)p.Content).UserChart.Is(uc)) ||
+            TypeLogic.IsIncluded<CombinedUserChartPartEntity>() && d.Parts.Any(p => ((CombinedUserChartPartEntity)p.Content).UserCharts.Any(e => e.UserChart.Is(uc)))));
+
+
+    [AutoExpressionField]
+    public static bool InToolbar(this UserChartEntity uq) =>
+    As.Expression(() =>
+        Database.Query<ToolbarEntity>().Any(t => t.Elements.Any(e => e.Content.Is(uq))) ||
+        Database.Query<ToolbarMenuEntity>().Any(t => t.Elements.Any(e => e.Content.Is(uq)))
+    );
+
     public static void Start(SchemaBuilder sb)
     {
         if (sb.AlreadyDefined(MethodInfo.GetCurrentMethod()))
@@ -47,6 +61,11 @@ public static class UserChartLogic
                 uq.Owner,
             });
 
+        new Graph<UserChartEntity>.ConstructFrom<UserChartEntity>(UserChartOperation.Clone)
+        {
+            Construct = (uc, _) => uc.Clone()
+        }.Register();
+
         sb.Schema.WhenIncluded<ToolbarEntity>(() =>
         {
             sb.Schema.Settings.AssertImplementedBy((ToolbarEntity t) => t.Elements.First().Content, typeof(UserChartEntity));
@@ -61,8 +80,11 @@ public static class UserChartLogic
                     var uc = UserCharts.Value.GetOrCreate(lite);
                     return ToolbarLogic.InMemoryFilter(uc) && QueryLogic.Queries.QueryAllowed(uc.Query.ToQueryName(), true);
                 },
-                GetRelatedQuery = lite => lite.RetrieveUserChart().Query,
+                // Straight from the cache: see the same note in UserQueryLogic.
+                GetRelatedQuery = lite => UserCharts.Value.GetOrCreate(lite).Query,
             }.Register();
+
+            QueryLogic.Expressions.Register((UserChartEntity uc) => uc.InToolbar());
         });
 
         sb.Schema.WhenIncluded<CachedQueryEntity>(() =>
@@ -75,10 +97,15 @@ public static class UserChartLogic
             
             sb.Schema.Settings.AssertImplementedBy((DashboardEntity d) => d.Parts.First().Content, typeof(UserChartPartEntity));
 
+            QueryLogic.Expressions.Register((UserChartEntity uc) => uc.Dashboards(), () => typeof(DashboardEntity).NicePluralName());
+
             DashboardLogic.PartNames.AddRange(new Dictionary<string, Type>
             {
                 {"UserChartPart", typeof(UserChartPartEntity)},
             });
+
+            DashboardLogic.RegisterPartRelatedQuery((UserChartPartEntity p) => p.UserChart.Query);
+            // CombinedUserChartPart shows several charts at once, so no single query represents it.
 
             sb.Include<UserChartPartEntity>()
                 .WithCascadeDeleteBy(a => a.UserChart);
@@ -298,7 +325,6 @@ public static class UserChartLogic
     {
         if (ctx.Mode == TokenSyncMode.Record)
             ctx.AddUserAssetAction(uc, UserAssetEntityActionType.Skip);
-        ctx.LogEntityChange(uc, UserAssetEntityActionType.Skip);
     }
 
     static void DeleteUserChart(TokenSyncContext ctx, UserChartEntity uc)
@@ -315,7 +341,6 @@ public static class UserChartLogic
                 tr.Commit();
             }
         }
-        ctx.LogEntityChange(uc, UserAssetEntityActionType.Delete);
     }
 
     static void SaveUserChart(UserChartEntity uc)
@@ -344,7 +369,11 @@ public static class UserChartLogic
                         return;
                 }
             }
-            catch (Exception ex) { ctx.LogEntityError(uc, ex); return; }
+            catch (Exception ex)
+            {
+                ctx.LogError(uc, ex);
+                return;
+            }
         }
 
         Console.Write(".");
@@ -464,13 +493,11 @@ public static class UserChartLogic
                     try
                     {
                         SaveUserChart(uc);
-                        ctx.LogEntityChange(uc, changes.ToArray());
                     }
-                    catch (Exception ex) { ctx.LogEntityError(uc, ex); }
+                    catch (Exception ex) { ctx.LogError(uc, ex); }
                 }
-                else ctx.LogEntityChange(uc, changes.ToArray());
             }
-            catch (Exception ex) { ctx.LogEntityError(uc, ex); }
+            catch (Exception ex) { ctx.LogError(uc, ex); }
         }
     }
 

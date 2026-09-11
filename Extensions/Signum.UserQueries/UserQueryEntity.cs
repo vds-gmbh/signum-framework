@@ -6,7 +6,7 @@ using System.Xml.Linq;
 
 namespace Signum.UserQueries;
 
-[EntityKind(EntityKind.Main, EntityData.Master)]
+[EntityKind(EntityKind.Main, EntityData.Master), PrimaryKey(typeof(Guid))]
 public class UserQueryEntity : Entity, IUserAssetEntity, IHasEntityType
 {
     public UserQueryEntity()
@@ -27,9 +27,20 @@ public class UserQueryEntity : Entity, IUserAssetEntity, IHasEntityType
 
     public bool GroupResults { get; set; }
 
-    public Lite<TypeEntity>? EntityType { get; set; }
+    Lite<TypeEntity>? entityType;
+    public Lite<TypeEntity>? EntityType
+    {
+        get { return entityType; }
+        set
+        {
+            if (Set(ref entityType, value) && value == null)
+                ShowTitleAsBreadcrumb = false;
+        }
+    }
 
     public bool HideQuickLink { get; set; }
+
+    public bool ShowTitleAsBreadcrumb { get; set; }
 
     public bool? IncludeDefaultFilters { get; set; }
 
@@ -38,11 +49,18 @@ public class UserQueryEntity : Entity, IUserAssetEntity, IHasEntityType
     [StringLengthValidator(Min = 1, Max = 200), Translatable]
     public string DisplayName { get; set; }
 
+    /// <summary>
+    /// Overrides the default "Create new [TypeName]" caption of the create button in the SearchControl
+    /// </summary>
+    [StringLengthValidator(Min = 1, Max = 200), Translatable]
+    public string? CreateTitle { get; set; }
+
     public bool AppendFilters { get; set; }
 
     public RefreshMode RefreshMode { get; set; } = RefreshMode.Auto;
 
     [PreserveOrder, BindParent]
+    [PrimaryKey(typeof(Guid))] //The row id identifies the element in the XML and in TranslatedInstance.RowId
     public MList<QueryFilterEmbedded> Filters { get; set; } = new MList<QueryFilterEmbedded>();
 
     [PreserveOrder]
@@ -51,6 +69,7 @@ public class UserQueryEntity : Entity, IUserAssetEntity, IHasEntityType
     public ColumnOptionsMode ColumnsMode { get; set; }
 
     [PreserveOrder]
+    [PrimaryKey(typeof(Guid))] //The row id identifies the element in the XML and in TranslatedInstance.RowId
     public MList<QueryColumnEmbedded> Columns { get; set; } = new MList<QueryColumnEmbedded>();
 
     public PaginationMode? PaginationMode { get; set; }
@@ -65,9 +84,6 @@ public class UserQueryEntity : Entity, IUserAssetEntity, IHasEntityType
     [PreserveOrder, NoRepeatValidator]
     [ImplementedBy(typeof(UserQueryEntity))]
     public MList<Lite<Entity>> CustomDrilldowns { get; set; } = new MList<Lite<Entity>>();
-
-    [UniqueIndex]
-    public Guid Guid { get; set; } = Guid.NewGuid();
 
     [AutoExpressionField]
     public override string ToString() => As.Expression(() => DisplayName);
@@ -112,12 +128,14 @@ public class UserQueryEntity : Entity, IUserAssetEntity, IHasEntityType
     public XElement ToXml(IToXmlContext ctx)
     {
         return new XElement("UserQuery",
-            new XAttribute("Guid", Guid),
+            new XAttribute("Guid", (Guid)Id),
             new XAttribute("DisplayName", DisplayName),
+            CreateTitle == null ? null : new XAttribute("CreateTitle", CreateTitle),
             new XAttribute("Query", Query.Key),
             EntityType == null ? null : new XAttribute("EntityType", ctx.RetrieveLite(EntityType).CleanName),
             Owner == null ? null : new XAttribute("Owner", Owner.KeyLong()),
             !HideQuickLink ? null : new XAttribute("HideQuickLink", HideQuickLink),
+            !ShowTitleAsBreadcrumb ? null : new XAttribute("ShowTitleAsBreadcrumb", ShowTitleAsBreadcrumb),
             IncludeDefaultFilters == null ? null : new XAttribute("IncludeDefaultFilters", IncludeDefaultFilters.Value),
             !AppendFilters ? null : new XAttribute("AppendFilters", AppendFilters),
             RefreshMode == RefreshMode.Auto ? null : new XAttribute("RefreshMode", RefreshMode.ToString()),
@@ -125,8 +143,8 @@ public class UserQueryEntity : Entity, IUserAssetEntity, IHasEntityType
             ElementsPerPage == null ? null : new XAttribute("ElementsPerPage", ElementsPerPage),
             PaginationMode == null ? null : new XAttribute("PaginationMode", PaginationMode),
             new XAttribute("ColumnsMode", ColumnsMode),
-            Filters.IsNullOrEmpty() ? null : new XElement("Filters", Filters.Select(f => f.ToXml(ctx)).ToList()),
-            Columns.IsNullOrEmpty() ? null : new XElement("Columns", Columns.Select(c => c.ToXml(ctx)).ToList()),
+            Filters.IsNullOrEmpty() ? null : new XElement("Filters", Filters.SelectWithRowId((f, rowId) => f.ToXml(ctx, rowId)).ToList()),
+            Columns.IsNullOrEmpty() ? null : new XElement("Columns", Columns.SelectWithRowId((c, rowId) => c.ToXml(ctx, rowId)).ToList()),
             Orders.IsNullOrEmpty() ? null : new XElement("Orders", Orders.Select(o => o.ToXml(ctx)).ToList()),
             SystemTime?.ToXml(),
             CustomDrilldowns.IsNullOrEmpty() ? null : new XElement("CustomDrilldowns", CustomDrilldowns.Select(d => new XElement("CustomDrilldown", ctx.Include((Lite<IUserAssetEntity>)d))).ToList()));
@@ -136,9 +154,11 @@ public class UserQueryEntity : Entity, IUserAssetEntity, IHasEntityType
     {
         Query = ctx.GetQuery(element.Attribute("Query")!.Value);
         DisplayName = element.Attribute("DisplayName")!.Value;
+        CreateTitle = element.Attribute("CreateTitle")?.Value;
         EntityType = element.Attribute("EntityType")?.Let(a => ctx.GetType(a.Value).ToLite());
         Owner = element.Attribute("Owner")?.Let(a => ctx.ParseLite(a.Value, this, uq => uq.Owner))!;
         HideQuickLink = element.Attribute("HideQuickLink")?.Let(a => bool.Parse(a.Value)) ?? false;
+        ShowTitleAsBreadcrumb = element.Attribute("ShowTitleAsBreadcrumb")?.Let(a => bool.Parse(a.Value)) ?? false;
         IncludeDefaultFilters = element.Attribute("IncludeDefaultFilters")?.Let(a => bool.Parse(a.Value));
         AppendFilters = element.Attribute("AppendFilters")?.Let(a => bool.Parse(a.Value)) ?? false;
         RefreshMode = element.Attribute("RefreshMode")?.Let(a => a.Value.ToEnum<RefreshMode>()) ?? RefreshMode.Auto;
@@ -148,8 +168,8 @@ public class UserQueryEntity : Entity, IUserAssetEntity, IHasEntityType
         ColumnsMode = element.Attribute("ColumnsMode")!.Value.Let(cm => cm == "Replace" ? "ReplaceAll" : cm).ToEnum<ColumnOptionsMode>();
 
         var valuePr = PropertyRoute.Construct((UserQueryEntity wt) => wt.Filters[0].ValueString);
-        Filters.Synchronize(element.Element("Filters")?.Elements().ToList(), (f, x) => f.FromXml(x, ctx, this, valuePr));
-        Columns.Synchronize(element.Element("Columns")?.Elements().ToList(), (c, x) => c.FromXml(x, ctx));
+        Filters.SynchronizeRowIds(element.Element("Filters")?.Elements().ToList(), (f, x, i) => f.FromXml(x, ctx, this, valuePr));
+        Columns.SynchronizeRowIds(element.Element("Columns")?.Elements().ToList(), (c, x, i) => c.FromXml(x, ctx));
         Orders.Synchronize(element.Element("Orders")?.Elements().ToList(), (o, x) => o.FromXml(x, ctx));
         CustomDrilldowns.Synchronize((element.Element("CustomDrilldowns")?.Elements("CustomDrilldown")).EmptyIfNull().Select(x => (Lite<Entity>)ctx.GetEntity(Guid.Parse(x.Value)).ToLiteFat()).NotNull().ToMList());
         SystemTime = element.Element("SystemTime")?.Let(xml => (SystemTime ?? new SystemTimeEmbedded()).FromXml(xml));
@@ -165,6 +185,33 @@ public class UserQueryEntity : Entity, IUserAssetEntity, IHasEntityType
             case Signum.DynamicQuery.PaginationMode.Paginate: return new Pagination.Paginate(ElementsPerPage!.Value, 1);
             default: return null;
         }
+    }
+
+    public UserQueryEntity Clone()
+    {
+        return new UserQueryEntity
+        {
+            Query = this.Query,
+            GroupResults = this.GroupResults,
+            EntityType = this.EntityType,
+            HideQuickLink = this.HideQuickLink,
+            ShowTitleAsBreadcrumb = this.ShowTitleAsBreadcrumb,
+            IncludeDefaultFilters = this.IncludeDefaultFilters,
+            Owner = this.Owner,
+            DisplayName = "Clone {0}".FormatWith(this.DisplayName),
+            CreateTitle = this.CreateTitle,
+            AppendFilters = this.AppendFilters,
+            RefreshMode = this.RefreshMode,
+            Filters = this.Filters.Select(f => f.Clone()).ToMList(),
+            Orders = this.Orders.Select(o => o.Clone()).ToMList(),
+            ColumnsMode = this.ColumnsMode,
+            Columns = this.Columns.Select(c => c.Clone()).ToMList(),
+            PaginationMode = this.PaginationMode,
+            ElementsPerPage = this.ElementsPerPage,
+            SystemTime = this.SystemTime?.Clone(),
+            HealthCheck = this.HealthCheck?.Clone(),
+            CustomDrilldowns = this.CustomDrilldowns.ToMList(),
+        };
     }
 }
 
@@ -253,6 +300,18 @@ public class SystemTimeEmbedded : EmbeddedEntity
 
         return (DateTime)FilterValueConverter.Parse(date, typeof(DateTime), false)!;
     }
+
+    internal SystemTimeEmbedded Clone() => new SystemTimeEmbedded
+    {
+        Mode = Mode,
+        StartDate = StartDate,
+        EndDate = EndDate,
+        JoinMode = JoinMode,
+        TimeSeriesUnit = TimeSeriesUnit,
+        TimeSeriesStep = TimeSeriesStep,
+        TimeSeriesMaxRowsPerStep = TimeSeriesMaxRowsPerStep,
+        SplitQueries = SplitQueries,
+    };
 }
 
 public class UserQueryLiteModel : ModelEntity
@@ -260,12 +319,16 @@ public class UserQueryLiteModel : ModelEntity
     public string DisplayName { get; set; }
     public QueryEntity Query { get; set; }
     public bool HideQuickLink { get; set; }
+    public bool ShowTitleAsBreadcrumb { get; set; }
+    public string? CreateTitle { get; set; }
 
     internal static UserQueryLiteModel Translated(UserQueryEntity uq) => new UserQueryLiteModel
     {
         DisplayName = uq.TranslatedField(a => a.DisplayName),
         Query = uq.Query,
         HideQuickLink = uq.HideQuickLink,
+        ShowTitleAsBreadcrumb = uq.ShowTitleAsBreadcrumb,
+        CreateTitle = uq.TranslatedFieldNullable(a => a.CreateTitle),
     };
 
     [AutoExpressionField]
@@ -282,6 +345,7 @@ public static class UserQueryPermission
 public static class UserQueryOperation
 {
     public static ExecuteSymbol<UserQueryEntity> Save;
+    public static ConstructSymbol<UserQueryEntity>.From<UserQueryEntity> Clone;
     public static DeleteSymbol<UserQueryEntity> Delete;
 }
 
@@ -552,6 +616,8 @@ public enum UserQueryMessage
     Pagination,
     [Description("{0} count of {1} is {2} than {3}")]
     _0CountOf1Is2Than3,
+    [Description("Overrides the default \"{0}\" caption of the create button")]
+    OverridesTheDefault0CaptionOfTheCreateButton,
 }
 
 public class HealthCheckEmbedded : EmbeddedEntity
@@ -568,6 +634,12 @@ public class HealthCheckEmbedded : EmbeddedEntity
 
         return base.PropertyValidation(pi);
     }
+
+    internal HealthCheckEmbedded Clone() => new HealthCheckEmbedded
+    {
+        FailWhen = FailWhen?.Clone(),
+        DegradedWhen = DegradedWhen?.Clone(),
+    };
 }
 
 public class HealthCheckConditionEmbedded : EmbeddedEntity
@@ -578,4 +650,10 @@ public class HealthCheckConditionEmbedded : EmbeddedEntity
 
     [Ignore]
     internal Func<int, bool> _CachedPredicate;
+
+    internal HealthCheckConditionEmbedded Clone() => new HealthCheckConditionEmbedded
+    {
+        Operation = Operation,
+        Value = Value,
+    };
 }

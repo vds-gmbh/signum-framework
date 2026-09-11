@@ -282,11 +282,12 @@ public class TokenValueProvider : ValueProviderBase
 
         var value = qc.CurrentRows.DistinctSingle(qc.ResultColumns[ParsedToken.QueryToken!]);
 
-        if(ParsedToken.QueryToken is CollectionToArrayToken ctat)
+        var cat = ParsedToken.QueryToken?.HasCollectionToArray();
+        if (cat != null)
         {
             var array = (IEnumerable<object>)(value ?? Array.Empty<object>());
 
-            var separator = ctat.ToArrayType == CollectionToArrayType.SeparatedByNewLine || ctat.ToArrayType == CollectionToArrayType.SeparatedByNewLineDistinct ? "\n" : ", ";
+            var separator = cat.ToArrayType == CollectionToArrayType.SeparatedByNewLine || cat.ToArrayType == CollectionToArrayType.SeparatedByNewLineDistinct ? "\n" : ", ";
 
             return array.ToString(separator);
         }
@@ -360,7 +361,7 @@ public class TokenValueProvider : ValueProviderBase
 
     public override void Synchronize(TemplateSynchronizationContext sc, string remainingText, bool forceChange)
     {
-        sc.SynchronizeToken(ParsedToken, remainingText, forceChange);
+        sc.SynchronizeToken(ParsedToken, remainingText, forceChange, canAny: false);
 
         Declare(sc.Variables);
     }
@@ -457,7 +458,7 @@ public class TranslateInstanceValueProvider : ValueProviderBase
 
     public override void Synchronize(TemplateSynchronizationContext sc, string remainingText, bool forceChange)
     {
-        sc.SynchronizeToken(ParsedToken, remainingText, forceChange);
+        sc.SynchronizeToken(ParsedToken, remainingText, forceChange, canAny: false);
 
         Declare(sc.Variables);
     }

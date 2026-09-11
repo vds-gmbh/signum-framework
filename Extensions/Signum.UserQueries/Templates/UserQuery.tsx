@@ -41,6 +41,10 @@ export default function UserQuery(p: { ctx: TypeContext<UserQueryEntity> }): Rea
   var qs = Finder.querySettings[query.key];
 
   var hasSystemTime = qs?.allowSystemTime ?? getTypeInfos(qd.columns["Entity"].type);
+
+  const entityTis = qd.columns["Entity"] ? getTypeInfos(qd.columns["Entity"].type) : [];
+  const defaultCreateTitle = entityTis.length == 0 ? undefined :
+    SearchMessage.CreateNew0_G.niceToString().forGenderAndNumber(entityTis.first().gender).formatWith(entityTis.map(ti => ti.niceName).join(", "));
   const url = window.location;
 
   return (
@@ -64,7 +68,10 @@ export default function UserQuery(p: { ctx: TypeContext<UserQueryEntity> }): Rea
                 {p.ctx.value.entityType && <br />}
                 {p.ctx.value.entityType && UserQueryMessage.Use0ToFilterCurrentEntity.niceToString().formatHtml(<code style={{ display: "inline" }}><strong>{CurrentEntityKey}</strong></code>)}
                 {p.ctx.value.entityType && <br />}
-                {p.ctx.value.entityType && <CheckboxLine ctx={ctx.subCtx(e => e.hideQuickLink)} inlineCheckbox />}
+                {p.ctx.value.entityType && <div className="d-flex gap-3">
+                  <CheckboxLine ctx={ctx.subCtx(e => e.hideQuickLink)} inlineCheckbox />
+                  <CheckboxLine ctx={ctx.subCtx(e => e.showTitleAsBreadcrumb)} inlineCheckbox />
+                </div>}
               </div>
             } />
         <div className="row"> 
@@ -76,6 +83,8 @@ export default function UserQuery(p: { ctx: TypeContext<UserQueryEntity> }): Rea
                   <AutoLine ctx={ctx4.subCtx(e => e.appendFilters)} readOnly={ctx.value.entityType != null || undefined} onChange={() => forceUpdate()}
                     helpText={UserQueryMessage.MakesThe0AvailableForCustomDrilldownsAndInContextualMenuWhenGrouping0.niceToString(UserQueryEntity.niceName(), query?.key)} />
                   <AutoLine ctx={ctx4.subCtx(e => e.refreshMode)} />
+                  <AutoLine ctx={ctx4.subCtx(e => e.createTitle)}
+                    helpText={defaultCreateTitle && UserQueryMessage.OverridesTheDefault0CaptionOfTheCreateButton.niceToString(defaultCreateTitle)} />
                   <EntityStrip ctx={ctx4.subCtx(e => e.customDrilldowns)}
                     findOptions={getCustomDrilldownsFindOptions()}
                     avoidDuplicates={true}
@@ -87,20 +96,16 @@ export default function UserQuery(p: { ctx: TypeContext<UserQueryEntity> }): Rea
                   {!ctx.value.isNew &&
                     <div>
                       <h3 className="mt-0 h5">{UserAssetMessage.UsedBy.niceToString()}</h3>
-                      <SearchValueLine ctx={ctx4} findOptions={{ queryName: ToolbarMenuEntity, filterOptions: [{ token: ToolbarMenuEntity.token(a => a.entity.elements).any().append(a => a.content), value: ctx.value }] }} />
-                      <SearchValueLine ctx={ctx4} findOptions={{ queryName: ToolbarEntity, filterOptions: [{ token: ToolbarEntity.token(a => a.entity.elements).any().append(a => a.content), value: ctx.value }] }} />
-                      <SearchValueLine ctx={ctx4} findOptions={{
-                        queryName: DashboardEntity,
+                      {ToolbarMenuEntity.memberImplements(a => a.elements[0].element.content, UserQueryEntity) && <SearchValueLine ctx={ctx4} findOptions={ToolbarMenuEntity.findOptions(token => ({ filterOptions: [token(a => a.entity.elements).any().append(a => a.content).filter("EqualTo", ctx.value)] }))} />}
+                      {ToolbarEntity.memberImplements(a => a.elements[0].element.content, UserQueryEntity) && <SearchValueLine ctx={ctx4} findOptions={ToolbarEntity.findOptions(token => ({ filterOptions: [token(a => a.entity.elements).any().append(a => a.content).filter("EqualTo", ctx.value)] }))} />}
+                      <SearchValueLine ctx={ctx4} findOptions={DashboardEntity.findOptions(token => ({
                         filterOptions: [
-                          {
-                            token: DashboardEntity.token(a => a.entity.parts).any(), groupOperation: "Or",
-                            filters: [
-                              { token: DashboardEntity.token(a => a.entity.parts).any().append(a => a.content).cast(BigValuePartEntity).append(a => a.userQuery), value: ctx.value },
-                              { token: DashboardEntity.token(a => a.entity.parts).any().append(a => a.content).cast(UserQueryPartEntity).append(a => a.userQuery), value: ctx.value },
-                            ]
-                          }
+                          token(a => a.entity.parts).any().filterGroup("Or", {}, t => [
+                            DashboardEntity.memberImplements(a => a.parts[0].element.content, BigValuePartEntity) ? t(a => a.content).cast(BigValuePartEntity).append(a => a.userQuery).filter("EqualTo", ctx.value) : null,
+                            DashboardEntity.memberImplements(a => a.parts[0].element.content, UserQueryPartEntity) ? t(a => a.content).cast(UserQueryPartEntity).append(a => a.userQuery).filter("EqualTo", ctx.value) : null,
+                          ])
                         ]
-                      }} />
+                      }))} />
                     </div>
                   }
                 </div>
@@ -248,10 +253,9 @@ export default function UserQuery(p: { ctx: TypeContext<UserQueryEntity> }): Rea
     if (!ctx.value.isNew)
       fos.push({ token: UserQueryEntity.token(e => e.entity), operation: "DistinctTo", value: ctx.value });
 
-    const result = {
-      queryName: UserQueryEntity,
+    const result = UserQueryEntity.findOptions(token => ({
       filterOptions: fos.map(fo => { fo.frozen = true; return fo; }),
-    } as FindOptions;
+    })) as FindOptions;
 
     return result;
   }

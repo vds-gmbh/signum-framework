@@ -2,7 +2,8 @@ import * as React from 'react'
 import { Link } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { classes, getContrastingTextColorWCAG } from '@framework/Globals'
-import { Entity, getToString, toLite, translated } from '@framework/Signum.Entities'
+import { MListElementBinding } from '@framework/Reflection'
+import { Entity, JavascriptMessage, getToString, liteKey, toLite, translated } from '@framework/Signum.Entities'
 import { TypeContext, mlistItemContext } from '@framework/TypeContext'
 import { DashboardClient, PanelPartContentProps } from '../DashboardClient'
 import { DashboardEntity, PanelPartEmbedded, IPartEntity, DashboardMessage } from '../Signum.Dashboard'
@@ -21,29 +22,40 @@ export default function DashboardView(p: { dashboard: DashboardEntity, cachedQue
 
   const forceUpdate = useForceUpdate();
   const dashboardController = React.useMemo(() => new DashboardController(forceUpdate, p.dashboard), [p.dashboard]);
+
+  const entityLite = p.entity ? toLite(p.entity) : undefined;
+  const hiddenPartsProvider = entityLite && DashboardClient.Options.hiddenPartsProviders[entityLite.EntityType];
+  const hiddenParts = useAPI(() => entityLite && hiddenPartsProvider ? hiddenPartsProvider(p.dashboard, entityLite) : null,
+    [p.dashboard, entityLite && liteKey(entityLite)]);
+
+  // Tell the controller what is not being rendered before it decides whether the dashboard is still loading.
+  dashboardController.hiddenParts = hiddenParts ?? new Set<string>();
   dashboardController.setIsLoading();
 
-  function renderBasic() {
-    const db = p.dashboard;
-    const ctx = TypeContext.root(db);
+  // Wait for the provider rather than laying out parts it is about to remove: a panel that appears and then
+  // vanishes, taking the row's proportions with it, is exactly what the provider is there to prevent.
+  const loadingHiddenParts = hiddenPartsProvider != null && hiddenParts === undefined;
 
+  const layout = React.useMemo(() => layoutParts(p.dashboard, hiddenParts ?? undefined), [p.dashboard, hiddenParts]);
+
+  function renderBasic() {
     return (
       <div>
         <div className="sf-dashboard-view">
           {
-            mlistItemContext(ctx.subCtx(a => a.parts))
+            layout.parts
               .groupBy(c => c.value.row!.toString())
               .orderBy(gr => Number(gr.key))
               .map(gr =>
                 <div className="row row-control-panel" key={"row" + gr.key}>
-                  {gr.elements.orderBy(ctx => ctx.value.startColumn).map((c, j, list) => {
+                  {gr.elements.orderBy(ctx => layout.startColumn(ctx)).map((c, j, list) => {
 
-                    const prev = j == 0 ? undefined : list[j - 1].value;
+                    const prev = j == 0 ? undefined : list[j - 1];
 
-                    const offset = c.value.startColumn! - (prev ? (prev.startColumn! + prev.columns!) : 0);
+                    const offset = layout.startColumn(c) - (prev ? (layout.startColumn(prev) + layout.columns(prev)) : 0);
 
                     return (
-                      <div key={j} className={`col-sm-${c.value.columns} offset-sm-${offset}`}>
+                      <div key={j} className={`col-sm-${layout.columns(c)} offset-sm-${offset}`}>
                         <PanelPart ctx={c} entity={p.entity}
                           dashboardController={dashboardController} reload={p.reload} cachedQueries={p.cachedQueries} deps={p.deps} />
                       </div>
@@ -57,16 +69,13 @@ export default function DashboardView(p: { dashboard: DashboardEntity, cachedQue
   }
 
   function renderCombinedRows() {
-    const db = p.dashboard;
-    const ctx = TypeContext.root(db);
-
-    var rows = mlistItemContext(ctx.subCtx(a => a.parts))
+    var rows = layout.parts
       .groupBy(c => c.value.row!.toString())
       .orderBy(g => Number(g.key))
       .map(g => ({
-        columns: g.elements.orderBy(a => a.value.startColumn).map(p => ({
-          startColumn: p.value.startColumn,
-          columnWidth: p.value.columns,
+        columns: g.elements.orderBy(a => layout.startColumn(a)).map(p => ({
+          startColumn: layout.startColumn(p),
+          columnWidth: layout.columns(p),
           parts: [p],
         }) as CombinedColumn)
       }) as CombinedRow);
@@ -96,15 +105,12 @@ export default function DashboardView(p: { dashboard: DashboardEntity, cachedQue
   return (
     <div className={p.embedded ? "sf-dashboard-view-embedded" : undefined}>
       {p.hideEditButton != true &&
-        <div className="d-flex flex-row-reverse m-1">
+        <div className="d-flex flex-row-reverse align-items-center m-1">
+          {DashboardClient.onDashboardPageActions.map((fn, i) => <React.Fragment key={i}>{fn(p.dashboard)}</React.Fragment>)}
           {!Navigator.isReadOnly(DashboardEntity) &&
             <Link className="sf-hide" style={{ textDecoration: "none" }} to={Navigator.navigateRoute(p.dashboard)} title={DashboardMessage.Edit.niceToString()}>
               <FontAwesomeIcon aria-hidden={true} icon="pen-to-square" />
             </Link>}
-        </div>}
-      {DashboardClient.onDashboardPageActions.length > 0 &&
-        <div className="d-flex justify-content-end m-1">
-          {DashboardClient.onDashboardPageActions.map((fn, i) => <React.Fragment key={i}>{fn(p.dashboard)}</React.Fragment>)}
         </div>}
       <div>
         {Array.from(dashboardController.pinnedFilters.values())
@@ -114,6 +120,7 @@ export default function DashboardView(p: { dashboard: DashboardEntity, cachedQue
             filterOptions={pf.pinnedFilters}
             onFiltersChanged={forceUpdate} />)}
         {
+          loadingHiddenParts ? JavascriptMessage.loading.niceToString() :
           p.dashboard.combineSimilarRows ?
             renderCombinedRows() :
             renderBasic()
@@ -121,6 +128,103 @@ export default function DashboardView(p: { dashboard: DashboardEntity, cachedQue
       </div>
     </div>
   );
+}
+
+interface PartLayout {
+  parts: TypeContext<PanelPartEmbedded>[];
+  startColumn: (ctx: TypeContext<PanelPartEmbedded>) => number;
+  columns: (ctx: TypeContext<PanelPartEmbedded>) => number;
+}
+
+/**
+ * The Guid row id of a part in DashboardEntity.parts, which is what identifies it (there is no property on the
+ * embedded entity). Undefined for a part that has not been saved yet, since the database assigns the row id.
+ */
+export function partRowId(ctx: TypeContext<PanelPartEmbedded>): string | undefined {
+  const rowId = ctx.binding instanceof MListElementBinding ? ctx.binding.getMListElement()?.rowId : undefined;
+
+  return rowId?.toString();
+}
+
+/**
+ * Drops the parts a `hiddenPartsProvider` asked to leave out and closes the gaps they leave behind, so that
+ * tailoring a panel away does not punch a hole in the grid. A row that filled its 12 columns keeps filling them,
+ * its remaining panels growing in proportion; a row that did not simply closes up. The positions live here
+ * instead of on the entity - writing them back would mark the dashboard as modified.
+ */
+function layoutParts(dashboard: DashboardEntity, hiddenGuids: Set<string> | undefined): PartLayout {
+
+  const all = mlistItemContext(TypeContext.root(dashboard).subCtx(a => a.parts));
+
+  const asDesigned: PartLayout = {
+    parts: all,
+    startColumn: ctx => ctx.value.startColumn!,
+    columns: ctx => ctx.value.columns!,
+  };
+
+  if (!hiddenGuids?.size)
+    return asDesigned;
+
+  const isHidden = (ctx: TypeContext<PanelPartEmbedded>) => {
+    const rowId = partRowId(ctx);
+    return rowId != null && hiddenGuids.has(rowId);
+  };
+
+  const visible = all.filter(ctx => !isHidden(ctx));
+  if (visible.length == all.length)
+    return asDesigned;
+
+  //Keyed by the context, not by the row id, because a part that has not been saved yet has no row id
+  const repacked = new Map<TypeContext<PanelPartEmbedded>, { startColumn: number, columns: number }>();
+
+  all.groupBy(ctx => ctx.value.row!.toString()).forEach(gr => {
+    const row = gr.elements.orderBy(ctx => ctx.value.startColumn);
+    const kept = row.filter(ctx => !isHidden(ctx));
+
+    if (kept.length == 0 || kept.length == row.length)
+      return;
+
+    const start = row[0].value.startColumn!;
+    const available = 12 - start;
+    const wasFull = row.sum(ctx => ctx.value.columns!) == available;
+
+    const widths = wasFull
+      ? growToFill(kept.map(ctx => ctx.value.columns!), available)
+      : kept.map(ctx => ctx.value.columns!);
+
+    let next = start;
+    kept.forEach((ctx, i) => {
+      repacked.set(ctx, { startColumn: next, columns: widths[i] });
+      next += widths[i];
+    });
+  });
+
+  return {
+    parts: visible,
+    startColumn: ctx => repacked.get(ctx)?.startColumn ?? ctx.value.startColumn!,
+    columns: ctx => repacked.get(ctx)?.columns ?? ctx.value.columns!,
+  };
+}
+
+/** Grows `widths` proportionally until they add up to `target`, handing the leftover columns to the widest gaps. */
+function growToFill(widths: number[], target: number): number[] {
+  const total = widths.sum();
+
+  if (total >= target || total == 0)
+    return widths;
+
+  const exact = widths.map(w => w * target / total);
+  const result = exact.map(e => Math.max(1, Math.floor(e)));
+
+  let rest = target - result.sum();
+  if (rest <= 0)
+    return result;
+
+  const byFraction = exact.map((e, i) => ({ i, fraction: e - Math.floor(e) })).orderByDescending(a => a.fraction);
+  for (let k = 0; rest > 0; k = (k + 1) % byFraction.length, rest--)
+    result[byFraction[k].i]++;
+
+  return result;
 }
 
 function combineRows(rows: CombinedRow[]): CombinedRow[] {
@@ -223,7 +327,8 @@ export function PanelPart(p: PanelPartProps): React.JSX.Element | null {
 
   const lite = p.entity ? toLite(p.entity) : undefined;
 
-  const partContentKey = p.ctx.value.guid;
+  //The MList row id identifies the part, the Tour targets it through the data-part-content attribute
+  const partContentKey = partRowId(p.ctx);
 
   if (renderer.withPanel && !renderer.withPanel(content, lite)) {
     const tooltipHtml = translated(part, p => p.tooltip);
@@ -256,7 +361,7 @@ export function PanelPart(p: PanelPartProps): React.JSX.Element | null {
     <FontAwesomeIcon aria-hidden={true} icon={fallbackIcon(icon)} color={iconColor ?? undefined} className="me-1" style={{ fontSize: "16px" }} />
   ) : null;
 
-  const title = !icon ? (
+  const title = part.hideTitle ? null : !icon ? (
     <>
       {titleText}
       {tooltipHtml && (
@@ -288,34 +393,36 @@ export function PanelPart(p: PanelPartProps): React.JSX.Element | null {
 
   const cardContent = (
     <div className={classes("card", !part.customColor && "border-tertiary", "shadow-sm", "mb-4")} style={{ flex: p.flex ? 1 : undefined,/* overflow: "hidden"*/ }}>
-      <div className={classes("card-header fw-bold", "sf-show-hover", "d-flex", !part.customColor)}
-        style={{ backgroundColor: part.customColor ?? undefined, color: part.customColor ? getContrastingTextColorWCAG(part.customColor) : undefined }}
-      >
+      {title &&
+        <div className={classes("card-header fw-bold", "sf-show-hover", "d-flex", !part.customColor)}
+          style={{ backgroundColor: part.customColor ?? undefined, color: part.customColor ? getContrastingTextColorWCAG(part.customColor) : undefined }}
+        >
 
-        {renderer.handleTitleClick == undefined ? title :
-          <LinkButton title={undefined} className="sf-pointer"
-            style={{ color: part.titleColor ?? (part.customColor ? getContrastingTextColorWCAG(part.customColor) : undefined), textDecoration: "none" }}
-            onClick={e => { renderer.handleTitleClick!(content, lite, customDataRef, e); }}>
-            {title}
-          </LinkButton>
-        }
-        {
-          dashboardFilter && <span className="badge bg-tertiary text-dark border ms-2 sf-filter-pill">
-            {dashboardFilter.rows.length} {DashboardMessage.RowsSelected.niceToString().forGenderAndNumber(dashboardFilter.rows.length)}
-            <button type="button" aria-label={DashboardMessage.Close.niceToString()} className="btn-close" onClick={handleClearFilter} />
-          </span>
-        }
-
-        <div className="ms-auto">
-          {renderer.customTitleButtons?.(content, lite, customDataRef)}
-          {
-            renderer.handleEditClick &&
-            <LinkButton className="sf-pointer sf-hide" onClick={e => { renderer.handleEditClick!(content, lite, customDataRef, e).then(v => v && p.reload()); }} title={DashboardMessage.Edit.niceToString()}>
-              <FontAwesomeIcon aria-hidden={true} icon="pen-to-square" className="me-1" />
+          {renderer.handleTitleClick == undefined ? title :
+            <LinkButton title={undefined} className="sf-pointer"
+              style={{ color: part.titleColor ?? (part.customColor ? getContrastingTextColorWCAG(part.customColor) : undefined), textDecoration: "none" }}
+              onClick={e => { renderer.handleTitleClick!(content, lite, customDataRef, e); }}>
+              {title}
             </LinkButton>
           }
+          {
+            dashboardFilter && <span className="badge bg-tertiary text-dark border ms-2 sf-filter-pill">
+              {dashboardFilter.rows.length} {DashboardMessage.RowsSelected.niceToString().forGenderAndNumber(dashboardFilter.rows.length)}
+              <button type="button" aria-label={DashboardMessage.Close.niceToString()} className="btn-close" onClick={handleClearFilter} />
+            </span>
+          }
+
+          <div className="ms-auto">
+            {renderer.customTitleButtons?.(content, lite, customDataRef)}
+            {
+              renderer.handleEditClick &&
+              <LinkButton className="sf-pointer sf-hide" onClick={e => { renderer.handleEditClick!(content, lite, customDataRef, e).then(v => v && p.reload()); }} title={DashboardMessage.Edit.niceToString()}>
+                <FontAwesomeIcon aria-hidden={true} icon="pen-to-square" className="me-1" />
+              </LinkButton>
+            }
+          </div>
         </div>
-      </div>
+      }
       <div data-part-content={partContentKey} className="card-body py-2 px-3 d-flex flex-column">
         <ErrorBoundary>
           {

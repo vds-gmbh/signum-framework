@@ -30,13 +30,12 @@ export interface WordConverterSymbol extends Basics.Symbol {
 export const WordModelEntity: Type<WordModelEntity> = new Type<WordModelEntity>("WordModel");
 export interface WordModelEntity extends Entities.Entity {
   Type: "WordModel";
-  fullClassName: string;
+  className: string;
 }
 
 export const WordTemplateEntity: Type<WordTemplateEntity> = new Type<WordTemplateEntity>("WordTemplate");
 export interface WordTemplateEntity extends Entities.Entity, UserAssets.IUserAssetEntity, Templating.IContainsQuery {
   Type: "WordTemplate";
-  guid: string /*Guid*/;
   name: string;
   query: Basics.QueryEntity | null;
   model: WordModelEntity | null;

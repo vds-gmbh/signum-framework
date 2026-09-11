@@ -52,6 +52,8 @@ export interface SearchControlProps {
   allowChangeOrder?: boolean;
   create?: boolean;
   createButtonClass?: string;
+  //Overrides the default "Create new [TypeName]" caption/title of the create button
+  createTitle?: string | ((sc: SearchControlLoaded) => string);
   view?: boolean | "InPlace";
   largeToolbarButtons?: boolean;
   defaultRefreshMode?: RefreshMode;
@@ -73,7 +75,7 @@ export interface SearchControlProps {
   onCreateFinished?: (entity: EntityPack<Entity> | ModifiableEntity | Lite<Entity> | undefined | void, scl: SearchControlLoaded) => void;
   ctx?: StyleContext;
   customRequest?: (req: QueryRequest, fop: FindOptionsParsed) => Promise<ResultTable>;
-  onPageSubTitleChanged?: () => void;
+  onPageTitleChanged?: () => void;
   mobileOptions?: (fop: FindOptionsParsed) => SearchControlMobileOptions;
   onDrilldown?: (scl: SearchControlLoaded, row: ResultRow, options?: OnDrilldownOptions) => Promise<boolean | undefined>;
   showTitle?: HeaderType;
@@ -227,6 +229,7 @@ function SearchControl(p: SearchControlProps): React.JSX.Element | null {
         allowChangeOrder={SearchControlOptions.allowOrderColumns(handler, p)}
         create={p.create != null ? p.create : (qs?.allowCreate ?? true) && (fop => tis.notNull().some(ti => Navigator.isCreable(ti, {isSearch: true, fo: fop })))}
         createButtonClass={p.createButtonClass}
+        createTitle={p.createTitle}
 
         view={p.view != null ? p.view : tis.notNull().some(ti => Navigator.isViewable(ti, { isSearch: "main" }))}
 
@@ -257,7 +260,7 @@ function SearchControl(p: SearchControlProps): React.JSX.Element | null {
 
         ctx={p.ctx}
         customRequest={p.customRequest}
-        onPageTitleChanged={p.onPageSubTitleChanged}
+        onPageTitleChanged={p.onPageTitleChanged}
 
         selectionFormatter={p.selectionFromatter}
 

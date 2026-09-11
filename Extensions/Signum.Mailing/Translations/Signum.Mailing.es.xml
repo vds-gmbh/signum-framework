@@ -106,7 +106,7 @@
     <Member Name="SentException" Description="Excepción envío" />
   </Type>
   <Type Name="EmailModelEntity" Description="Modelo de e-Mail">
-    <Member Name="FullClassName" Description="Full Class Name" />
+    <Member Name="ClassName" Description="Class Name" />
   </Type>
   <Type Name="EmailRecipientEmbedded" Description="Destinatario de correo electrónico">
     <Member Name="Kind" Description="Tipo" />
@@ -204,7 +204,7 @@
     <Member Name="FistResult" Description="Primer resultado" />
     <Member Name="SplitMessages" Description="Dividir mensajes" />
   </Type>
-  <Type Name="WhenManyRecipiensBehaviour" Description="Comportamiento cuando varios destinatarios">
+  <Type Name="WhenManyRecipientsBehaviour" Description="Comportamiento cuando varios destinatarios">
     <Member Name="KeepOneMessageWithManyRecipients" Description="Mantener un mensaje con varios destinatarios" />
     <Member Name="SplitMessages" Description="Dividir mensajes" />
   </Type>

@@ -12,6 +12,15 @@ public static class SchemaSynchronizer
 
     public static Action<Dictionary<string, DiffTable>>? SimplifyDiffTables;
 
+    /// <summary>
+    /// Called when the primary key of an MList table changes type, to update the places that store an MList row id
+    /// as a value instead of as a foreign key (typically <c>TranslatedInstance.RowId</c>, a string).
+    /// <para>Set by the module that owns those tables, since the synchronizer lives in Signum and can not reference
+    /// the extensions. The returned commands run after the new row ids are in place and before the renamed
+    /// <c>_old</c> column is dropped.</para>
+    /// </summary>
+    public static Func<TableMList, IColumn /*newPrimaryKey*/, DiffColumn /*oldPrimaryKey*/, SqlPreCommand?>? UpdateMListRowIdReferences;
+
     public static SqlPreCommand? SynchronizeTablesScript(Replacements replacements)
     {
         Schema s = Schema.Current;
@@ -119,7 +128,9 @@ public static class SchemaSynchronizer
             var diffPk = diff.Columns.Values.Where(a => a.PrimaryKey).Only();
             var pk = tab.PrimaryKey;
 
-            if (diffPk != null && diffPk.CompatibleTypes(pk))
+            //Same condition as incompatibleTypes above: CompatibleTypes always returns true in Postgres,
+            //so the Identity difference is what detects an int identity -> Guid primary key change there.
+            if (diffPk != null && (!diffPk.CompatibleTypes(pk) || diffPk.Identity != pk.Identity))
                 primaryKeyTypeChanged.Add(tab);
 
             diff.Columns = replacements.ApplyReplacementsToOld(diff.Columns, key);
@@ -131,6 +142,22 @@ public static class SchemaSynchronizer
                 var diffTemp = databaseTablesHistory.GetOrThrow(replacements.Apply(Replacements.KeyTables, temporalTableName.ToString()));
                 diffTemp.Columns = replacements.ApplyReplacementsToOld(diffTemp.Columns, key);
                 diffTemp.Indices = ApplyIndexAutoReplacements(diffTemp, tab, modelIndices[tab]);
+
+                //preRenameColumns (A -> A_old) runs before any SET SYSTEM_VERSIONING = OFF, so SQL Server propagates the
+                //SP_RENAME to the history table of a connected system-versioned table. Mirror it in diffTemp, otherwise
+                //historyFixes sees A_old vs A and renames the history column a second time, which fails.
+                //Disconnected history tables (InferredTemporalTableName) and Postgres (trigger-based versioning) do not
+                //propagate, and there historyFixes is what renames the history column.
+                var propagatesRenameToHistory = !isPostgres && diff.TemporalTableName != null && diff.InferredTemporalTableName == null;
+                if (propagatesRenameToHistory && preRenameColumnsList.TryGetC(diff.Name) is { } preRenames)
+                {
+                    foreach (var tempCol in diffTemp.Columns.Values)
+                    {
+                        var newName = preRenames.TryGetC(tempCol.Name);
+                        if (newName != null)
+                            tempCol.Name = newName;
+                    }
+                }
             }
         });
 
@@ -340,6 +367,7 @@ public static class SchemaSynchronizer
             HashSet<FieldEmbedded.EmbeddedHasValueColumn> hasValueFalse = new HashSet<FieldEmbedded.EmbeddedHasValueColumn>();
 
             List<SqlPreCommand?> delayedHistoryColumns = new List<SqlPreCommand?>();
+            List<SqlPreCommand?> delayedUpdatesStealGuid = new List<SqlPreCommand?>(); //TEMPORARY Guid primary key migration, see PrimaryKeyUpdater
             List<SqlPreCommand?> delayedUpdatesHistory = new List<SqlPreCommand?>();
             List<SqlPreCommand?> delayedUpdatesFks = new List<SqlPreCommand?>();
             List<SqlPreCommand?> delayedDrops = new List<SqlPreCommand?>();
@@ -424,6 +452,30 @@ public static class SchemaSynchronizer
 
                             removeOld: (cn, difCol) =>
                             {
+                                #region TEMPORARY Guid primary key migration, see PrimaryKeyUpdater
+                                var guidToSteal = primaryKeyTypeChanged.Contains(tab) ? pkUpdater.TryGetGuidColumnToSteal(tab, dif) : null;
+                                var isBeingStolen = guidToSteal != null && guidToSteal.Name == difCol.Name;
+
+                                pkUpdater.AssertGuidColumnNotSilentlyDropped(tab, difCol, replacements, isBeingStolen);
+
+                                //The new Guid primary key is filled from this column (delayedUpdatesStealGuid),
+                                //so the column can only be dropped after that update has run.
+                                if (isBeingStolen)
+                                {
+                                    var dropGuid = sqlBuilder.AlterTableDropColumn(tab, cn, withHistory);
+
+                                    delayedDrops.Add(SqlPreCommand.Combine(Spacing.Simple,
+                                        difCol.DefaultConstraint != null && difCol.DefaultConstraint.Name != null ? sqlBuilder.AlterTableDropConstraint(tab.Name, difCol.DefaultConstraint!.Name) : null,
+                                        //Only split when there IS a history table: otherwise ForNormal and ForHistory both
+                                        //return the same command and the column would be dropped twice
+                                        withHistory ? SqlPreCommand_WithHistory.ForNormal(dropGuid) : dropGuid,
+                                        withHistory ? SqlPreCommand_WithHistory.ForHistory(dropGuid) : null
+                                    ));
+
+                                    return null;
+                                }
+                                #endregion
+
                                 var result = SqlPreCommand.Combine(Spacing.Simple,
                                         difCol.DefaultConstraint != null && difCol.DefaultConstraint.Name != null ? sqlBuilder.AlterTableDropConstraint(tab.Name, difCol.DefaultConstraint!.Name) : null,
                                     sqlBuilder.AlterTableDropColumn(tab, cn, withHistory));
@@ -444,12 +496,30 @@ public static class SchemaSynchronizer
                                 {
                                     if (difCol.PrimaryKey)
                                     {
-                                        if (disableSystemVersioning != null)
+                                        #region TEMPORARY Guid primary key migration, see PrimaryKeyUpdater
+                                        //Reuse the obsolete Guid column as the new primary key instead of letting NEWID() fill it.
+                                        var guidToSteal = primaryKeyTypeChanged.Contains(tab) ? pkUpdater.TryGetGuidColumnToSteal(tab, dif) : null;
+                                        if (guidToSteal != null)
+                                            delayedUpdatesStealGuid.Add(pkUpdater.StealGuidIntoPrimaryKey(tab, tabCol, guidToSteal, withHistory));
+                                        #endregion
+
+                                        //When the Guid is stolen the history table gets its ids from the same column, so UpdateHistoryTable is not needed
+                                        if (disableSystemVersioning != null && guidToSteal == null)
                                             delayedUpdatesHistory.Add(pkUpdater.UpdateHistoryTable(tab, dif.Name, tabCol, difCol));
 
                                         var updateIBA = tab is Table t ? pkUpdater.UpdateImplementedByAll(t, dif.Name, tabCol, difCol) : null;
                                         if (updateIBA != null)
                                             delayedUpdatesFks.Add(updateIBA);
+
+                                        if (tab is TableMList mlistTable)
+                                        {
+                                            //Row ids stored as a value instead of as a foreign key (TranslatedInstance.RowId)
+                                            if (UpdateMListRowIdReferences == null)
+                                                SafeConsole.WriteLineColor(ConsoleColor.Yellow,
+                                                    $"The primary key of {mlistTable.Name} changes type, but {nameof(UpdateMListRowIdReferences)} is not set: anything storing its row ids as a value (like TranslatedInstance.RowId) will be left dangling.");
+                                            else
+                                                delayedUpdatesFks.Add(UpdateMListRowIdReferences(mlistTable, tabCol, difCol));
+                                        }
                                     }
                                     else
                                     {
@@ -462,8 +532,8 @@ public static class SchemaSynchronizer
 
                                     delayedDrops.Add(SqlPreCommand.Combine(Spacing.Simple,
                                         difCol.DefaultConstraint != null ? sqlBuilder.AlterTableDropDefaultConstaint(tab, difCol, false) : null,
-                                        SqlPreCommand_WithHistory.ForNormal(dropColumn),
-                                        SqlPreCommand_WithHistory.ForHistory(dropColumn)
+                                        withHistory ? SqlPreCommand_WithHistory.ForNormal(dropColumn) : dropColumn,
+                                        withHistory ? SqlPreCommand_WithHistory.ForHistory(dropColumn) : null
                                     ));
 
                                     var addColumn = tabCol.PrimaryKey ? 
@@ -753,6 +823,7 @@ public static class SchemaSynchronizer
                 historyFixes,
                 tables, historyTables, delayedHistoryColumns.Combine(Spacing.Double),
                 versioningTriggers,
+                delayedUpdatesStealGuid.Combine(Spacing.Double), //TEMPORARY Guid primary key migration, see PrimaryKeyUpdater
                 delayedUpdatesHistory.Combine(Spacing.Double),
                 delayedUpdatesFks.Combine(Spacing.Double),
                 delayedDrops.Combine(Spacing.Simple),
@@ -1027,7 +1098,9 @@ JOIN {tm.BackReference.ReferenceTable.Name} e on mle.{tm.BackReference.Name} = e
             column.DbType.IsNumber() ? "0" :
             column.DbType.IsString() ? "''" :
             column.DbType.IsDate() ? (Schema.Current.Settings.IsPostgres ? "now()" : "GetDate()") :
-            column.DbType.IsGuid() ? (Schema.Current.Settings.IsPostgres ? "uuid_generate_v1()" : "NEWID()") :
+            column.DbType.IsGuid() ? (Schema.Current.Settings.IsPostgres ?
+                (Connector.Current.SupportsUuidV7 ? DbTypeAttribute.Postgres_UuidV7 : DbTypeAttribute.Postgres_UuidGenerateV1) :
+                DbTypeAttribute.SqlServer_NewId) :
             column.DbType.IsTime() ? "'00:00'" :
             column.DbType.HasPostgres && column.DbType.PostgreSql == NpgsqlDbType.TimestampTzRange ? "tstzrange(now(), NULL, '[)')" :
             "?");
@@ -1289,7 +1362,13 @@ SELECT @{1} = COALESCE(@{1},'')+'KILL '+CAST(SPID AS VARCHAR)+'; 'FROM master..S
 EXEC(@{1})".FormatWith(databaseName.Name, variableName));
     }
 
-    public static SqlPreCommand? SyncPostgresExtensions(Replacements replacements)
+    //Runs before the tables, so the extensions are available for the columns/types that need them
+    public static SqlPreCommand? SyncPostgresExtensionsCreate(Replacements replacements) => SyncPostgresExtensions(create: true);
+
+    //Runs after the tables, so a no-longer-needed extension is dropped once the columns depending on it are gone
+    public static SqlPreCommand? SyncPostgresExtensionsDrop(Replacements replacements) => SyncPostgresExtensions(create: false);
+
+    static SqlPreCommand? SyncPostgresExtensions(bool create)
     {
         if (!Schema.Current.Settings.IsPostgres)
             return null;
@@ -1305,8 +1384,8 @@ EXEC(@{1})".FormatWith(databaseName.Name, variableName));
         var result = Synchronizer.SynchronizeScript(Spacing.Simple,
               newDictionary: should,
               oldDictionary: current,
-              createNew: (key, n) => isAzure && key == "plpgsql" ? null : sb.CreateExtensionIfNotExist(key), // Skip plpgsql creation in Azure
-              removeOld: (key, o) => isAzure && key == "plpgsql" ? null : sb.DropExtension(key), // Skip plpgsql drop in Azure
+              createNew: (key, n) => !create || isAzure && key == "plpgsql" ? null : sb.CreateExtensionIfNotExist(key), // Skip plpgsql creation in Azure
+              removeOld: (key, o) => create || isAzure && key == "plpgsql" ? null : sb.DropExtension(key), // Skip plpgsql drop in Azure
               mergeBoth: (k, n, o) => null);
 
         return result;

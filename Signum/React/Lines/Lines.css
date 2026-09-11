@@ -422,6 +422,10 @@ body.rtl .form-group.row>label {
     margin-bottom: 1rem;
 }
 
+.required-indicator {
+    color: rgb(var(--bs-danger-rgb));
+}
+
 .form-group .form-group {
     margin-bottom: 0px;
 }
@@ -604,6 +608,10 @@ input[type=checkbox].form-control-xs {
 .form-control-sm.rw-combobox.rw-widget {
     padding: 0px;
     min-height: initial;
+}
+
+.form-control-md { /*required for read-only ones*/
+    min-height: calc(1.5em + 0.75rem + calc(var(--bs-border-width) * 2));
 }
 
 .form-control-sm .rw-widget-picker {
