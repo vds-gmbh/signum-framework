@@ -16,13 +16,19 @@ class PropertyCache : AuthCache<RulePropertyEntity, PropertyAllowedRule, Propert
 
     protected override PropertyRouteEntity ToEntity(PropertyRoute key) => PropertyRouteLogic.ToPropertyRouteEntity(key);
 
-    protected override WithConditions<PropertyAllowed> GetRuleAllowed(RulePropertyEntity rule) => new WithConditions<PropertyAllowed>(rule.Fallback, rule.ConditionRules.Select(c => new ConditionRule<PropertyAllowed>(c.Conditions.ToFrozenSet(), c.Allowed)).ToReadOnly());
+    protected override WithConditions<PropertyAllowed> GetRuleAllowed(RulePropertyEntity rule) => new WithConditions<PropertyAllowed>(rule.Fallback, rule.ConditionRules.Select(c =>
+    {
+        if (c.Conditions.Count == 0)
+            throw new InvalidOperationException($"{nameof(RulePropertyConditionEntity)} {c.Id} of '{rule}' has no type conditions. Delete it and import the AuthRules again.");
+
+        return new ConditionRule<PropertyAllowed>(c.Conditions.ToFrozenSet(), c.Allowed);
+    }).ToReadOnly());
 
     protected override RulePropertyEntity SetRuleAllowed(RulePropertyEntity rule, WithConditions<PropertyAllowed> allowed)
     {
         rule.Fallback = allowed.Fallback;
         var oldConditions = rule.ConditionRules.Select(a => new ConditionRule<PropertyAllowed>(a.Conditions.ToFrozenSet(), a.Allowed)).ToReadOnly();
-        if (!oldConditions.SequenceEqual(allowed.ConditionRules))
+        if (!oldConditions.SequenceEqual(allowed.ConditionRules) || rule.ConditionRules.Where((c, i) => c.Order != i).Any())
             rule.ConditionRules = allowed.ConditionRules.Select(a => new RulePropertyConditionEntity
             {
                 Allowed = a.Allowed,
